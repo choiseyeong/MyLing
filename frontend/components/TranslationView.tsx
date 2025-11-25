@@ -97,8 +97,11 @@ export default function TranslationView({
           </button>
           <button
             onClick={onGoToWordOrganization}
-            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark"
-            disabled={!saved}
+            className={`px-4 py-2 rounded-lg transition-colors ${
+              saved
+                ? 'bg-primary text-white hover:bg-primary-dark'
+                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+            }`}
           >
             단어 정리하기 &gt;
           </button>

@@ -66,29 +66,35 @@ export default function VocabularyPage() {
   }
 
   const handleToggleKnown = async (wordId: number, currentKnown: boolean) => {
-    // 옵티미스틱 업데이트: 먼저 UI를 업데이트
-    setWords(prevWords => 
-      prevWords.map(word => 
+    // 옵티미스틱 업데이트: UI 및 원본 데이터 동기화
+    setWords((prevWords) =>
+      prevWords.map((word) =>
         word.id === wordId ? { ...word, known: !currentKnown } : word
       )
     )
-    
+    setAllWords((prevWords) =>
+      prevWords.map((word) =>
+        word.id === wordId ? { ...word, known: !currentKnown } : word
+      )
+    )
+
     try {
       await apiClient.markWord(wordId, !currentKnown)
-      // 성공 시 전체 목록 다시 불러오기 (로딩 없이)
       const data = await apiClient.getVocabulary(
         filter === 'by-passage' ? selectedStudyId || undefined : undefined
       )
-      if (showUnknownOnly) {
-        setWords(data.filter((word) => !word.known))
-      } else {
-        setWords(data)
-      }
+      setAllWords(data)
+      setWords(showUnknownOnly ? data.filter((word) => !word.known) : data)
     } catch (error) {
       console.error('Failed to mark word:', error)
       // 실패 시 원래 상태로 복구
-      setWords(prevWords => 
-        prevWords.map(word => 
+      setWords((prevWords) =>
+        prevWords.map((word) =>
+          word.id === wordId ? { ...word, known: currentKnown } : word
+        )
+      )
+      setAllWords((prevWords) =>
+        prevWords.map((word) =>
           word.id === wordId ? { ...word, known: currentKnown } : word
         )
       )
@@ -105,7 +111,7 @@ export default function VocabularyPage() {
 
   return (
     <div className="min-h-screen px-8 py-8">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl w-full mx-auto">
         <h1 className="text-4xl font-bold mb-2">단어장 Vocabulary</h1>
         <p className="text-gray-400 mb-8">
           내가 저장한 단어들을 확인하고 복습할 수 있습니다
@@ -167,7 +173,7 @@ export default function VocabularyPage() {
             {/* 오른쪽: 단어 목록 */}
             <div className={filter === 'by-passage' ? 'col-span-3' : 'col-span-4'}>
               <div className="flex justify-between items-center mb-4">
-                <h3 className="font-semibold">단어</h3>
+                <h3 className="font-semibold">단어 목록</h3>
                 <div className="flex items-center gap-2">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -204,7 +210,7 @@ export default function VocabularyPage() {
                   {words.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="text-center py-8 text-gray-500">
-                        저장된 단어가 없습니다.
+                        저장된 단어가 없습니다. <br/> 모든 단어를 학습하셨군요!
                       </td>
                     </tr>
                   ) : (
@@ -216,8 +222,16 @@ export default function VocabularyPage() {
                               handleToggleKnown(word.id, word.known)
                             }
                             className={`w-4 h-4 rounded-full mr-2 ${
-                              word.known ? 'bg-primary' : 'bg-gray-400'
+                              word.known ? '' : 'bg-gray-400'
                             }`}
+                            style={
+                              word.known
+                                ? {
+                                    backgroundImage:
+                                      'linear-gradient(180deg, #C6B3FF 0%, #7556FF 100%)',
+                                  }
+                                : undefined
+                            }
                           />
                           {word.word}
                         </td>

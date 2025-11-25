@@ -9,11 +9,102 @@
 }
 
 body {
-  background-color: #000000;
+  background: #000000;
   color: #ffffff;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
+}
+
+@keyframes floatSoft {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-16px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+@layer utilities {
+  .animate-float-slow {
+    animation: floatSoft 7s ease-in-out infinite;
+  }
+  .hero-text-fade {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: heroTextRise 1.4s ease forwards;
+  }
+  .hero-text-fade-delay {
+    animation-delay: 0.2s;
+  }
+  .btn-glow {
+    position: relative;
+    isolation: isolate;
+  }
+  .btn-glow::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 999px;
+    border: 2px solid rgba(255, 248, 186, 0.65);
+    filter: blur(6px);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    z-index: -1;
+  }
+  .btn-glow:hover::after {
+    opacity: 1;
+  }
+  .orbit-wrapper {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    transform: translate(-50%, -50%);
+  }
+  .orbiting-ghost {
+    position: absolute;
+    top: -50px;
+    left: -50px;
+    width: 100px;
+    height: 100px;
+    animation: ghostOrbit 5.5s linear infinite;
+    transform-origin: 50px 50px;
+    filter: drop-shadow(0 12px 24px rgba(117, 86, 255, 0.45));
+  }
+  .orbit-trail {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 140px;
+    height: 5px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(177, 154, 255, 0.85));
+    border-radius: 999px;
+    animation: ghostTrail 5.5s linear infinite;
+    transform-origin: 0 50%;
+    filter: blur(3px);
+  }
+  .ring-spin {
+    animation: spinTrail 6s linear infinite;
+  }
+}
+
+@keyframes heroTextRise {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0px);
+  }
 }
 
 @keyframes loading-dot {
@@ -24,6 +115,38 @@ body {
   50% {
     opacity: 1;
     transform: scale(1.2);
+  }
+}
+
+@keyframes ghostOrbit {
+  0% {
+    transform: rotate(0deg) translateX(120px) rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg) translateX(120px) rotate(-360deg);
+  }
+}
+
+@keyframes ghostTrail {
+  0% {
+    opacity: 0;
+    transform: rotate(0deg) translateX(40px);
+  }
+  10% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(360deg) translateX(40px);
+  }
+}
+
+@keyframes spinTrail {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 
