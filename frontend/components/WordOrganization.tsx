@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { apiClient, Word } from '@/lib/api'
 
 interface WordOrganizationProps {
@@ -14,6 +15,7 @@ export default function WordOrganization({
   translationData,
   studyId,
 }: WordOrganizationProps) {
+  const router = useRouter()
   const [words, setWords] = useState<Word[]>([])
   const [selectedWord, setSelectedWord] = useState<string | null>(null)
   
@@ -112,9 +114,10 @@ export default function WordOrganization({
   }
 
   return (
-    <div className="grid grid-cols-3 gap-6">
-      {/* 왼쪽: 본문 */}
-      <div className="col-span-2">
+    <div className="space-y-6">
+      <div className="grid grid-cols-3 gap-6">
+        {/* 왼쪽: 본문 */}
+        <div className="col-span-2">
         <input
           type="text"
           value={title}
@@ -152,19 +155,25 @@ export default function WordOrganization({
             </div>
           ))}
         </div>
-      </div>
+        </div>
 
-      {/* 오른쪽: 단어장 */}
-      <div className="col-span-1">
-        <div className="flex gap-3 mb-4">
+        {/* 오른쪽: 단어장 */}
+        <div className="col-span-1">
+        <div className="flex gap-3 mb-4 flex-wrap justify-between">
           <button
             onClick={handleResetAll}
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold"
           >
             단어 전체 초기화
           </button>
-          <button className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark">
+          <button className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark font-semibold">
             PDF 저장하기 &gt;
+          </button>
+          <button
+            onClick={() => router.push('/')}
+            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark font-semibold"
+          >
+            홈으로
           </button>
         </div>
 
@@ -189,8 +198,16 @@ export default function WordOrganization({
                     <button
                       onClick={() => handleToggleKnown(word.id, word.known)}
                       className={`w-4 h-4 rounded-full mr-2 inline-block ${
-                        word.known ? 'bg-primary' : 'bg-gray-400'
+                        word.known ? '' : 'bg-gray-400'
                       }`}
+                      style={
+                        word.known
+                          ? {
+                              backgroundImage:
+                                'linear-gradient(180deg, #C6B3FF 0%, #7556FF 100%)',
+                            }
+                          : undefined
+                      }
                     />
                     <span className="font-semibold">{word.word}</span>
                     <p className="text-sm text-gray-600 mt-1">
@@ -227,6 +244,7 @@ export default function WordOrganization({
               ))}
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>

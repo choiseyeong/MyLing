@@ -80,7 +80,7 @@ export default function MyPage() {
 
   return (
     <div className="min-h-screen px-8 py-8">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl w-full mx-auto">
         <h1 className="text-4xl font-bold mb-2">나의 학습</h1>
         <p className="text-gray-400 mb-8">
           내가 저장한 지문과 학습 기록을 확인하세요.

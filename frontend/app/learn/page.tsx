@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Image from 'next/image'
 import ProgressBar from '@/components/ProgressBar'
 import FileUpload from '@/components/FileUpload'
 import TranslationView from '@/components/TranslationView'
@@ -26,6 +27,20 @@ export default function LearnPage() {
   const [loading, setLoading] = useState(false)
   const [showSavingToast, setShowSavingToast] = useState(false)
   const [showWarningToast, setShowWarningToast] = useState(false)
+  const [showTitleWarningToast, setShowTitleWarningToast] = useState(false)
+  const [showSuccessToast, setShowSuccessToast] = useState(false)
+  useEffect(() => {
+    if (!showTitleWarningToast) return
+    const timer = setTimeout(() => setShowTitleWarningToast(false), 2500)
+    return () => clearTimeout(timer)
+  }, [showTitleWarningToast])
+
+  useEffect(() => {
+    if (!showSuccessToast) return
+    const timer = setTimeout(() => setShowSuccessToast(false), 2500)
+    return () => clearTimeout(timer)
+  }, [showSuccessToast])
+
 
   // URL 파라미터에서 studyId를 받아 기존 학습 불러오기
   useEffect(() => {
@@ -198,7 +213,7 @@ export default function LearnPage() {
 
   const handleSaveToMyLearning = async () => {
     if (!title.trim() || !translationData) {
-      alert('제목을 입력해주세요.')
+      setShowTitleWarningToast(true)
       return
     }
 
@@ -221,11 +236,8 @@ export default function LearnPage() {
       })
 
       setSavedStudyId(result.study_id)
-      // 토스트 메시지를 잠시 표시한 후 닫기
-      setTimeout(() => {
-        setShowSavingToast(false)
-        alert('내 학습에 저장되었습니다!')
-      }, 500)
+      setShowSavingToast(false)
+      setShowSuccessToast(true)
     } catch (error: any) {
       setShowSavingToast(false)
       console.error('Save failed:', error)
@@ -295,6 +307,24 @@ export default function LearnPage() {
         onClose={() => setShowSavingToast(false)}
         duration={5000}
       />
+      <div
+        className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${
+          showSuccessToast ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
+        }`}
+      >
+        <div className="bg-primary text-white px-6 py-3 rounded-full shadow-lg text-sm font-semibold">
+          내 학습에 저장되었습니다!
+        </div>
+      </div>
+      <div
+        className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${
+          showTitleWarningToast ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
+        }`}
+      >
+        <div className="bg-gray-900 text-white px-6 py-3 rounded-full shadow-lg text-sm">
+          제목을 입력해 주세요.
+        </div>
+      </div>
       
       {/* 경고 토스트 메시지 (화면 가운데) */}
       <div
@@ -309,8 +339,8 @@ export default function LearnPage() {
           }`}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="text-center">
-            <div className="text-6xl mb-4">😊</div>
+            <div className="text-center flex flex-col items-center">
+            <Image src="/ghost_5.png" alt="귀여운 링기" width={120} height={120} className="mb-4" />
             <h3 className="text-xl font-bold text-gray-800 mb-2">
               먼저 내 학습에 저장을 완료해 주세요!
             </h3>
@@ -327,7 +357,7 @@ export default function LearnPage() {
         </div>
       </div>
       
-      <div className="max-w-6xl mx-auto mt-8 bg-white rounded-lg p-8 text-black">
+      <div className="max-w-7xl w-full mx-auto mt-8 bg-white rounded-lg p-8 text-black">
         {step === 1 && !isUploading && (
           <FileUpload
             files={uploadedFiles}
