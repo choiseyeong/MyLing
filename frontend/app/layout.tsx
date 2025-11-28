@@ -3,8 +3,13 @@ import type { Metadata } from 'next'
 import Navigation from '@/components/Navigation'
 
 export const metadata: Metadata = {
-  title: 'MyLing - English Reading Learning Platform',
+  title: 'MyLing',
   description: 'Learn English through reading and translation',
+  icons: {
+    icon: '/ghost_3.png',
+    shortcut: '/ghost_3.png',
+    apple: '/ghost_3.png',
+  },
 }
 
 export default function RootLayout({
