@@ -19,6 +19,7 @@ export default function WordOrganization({
   const [words, setWords] = useState<Word[]>([])
   const [selectedWord, setSelectedWord] = useState<string | null>(null)
   
+  
   const handleToggleKnown = async (wordId: number, currentKnown: boolean) => {
     // 옵티미스틱 업데이트: 먼저 UI를 업데이트
     setWords(prevWords => 
@@ -135,7 +136,7 @@ export default function WordOrganization({
                 {paragraph.sentences.map((sentence: any, sIndex: number) => (
                   <div key={sIndex} className="space-y-2">
                     <div
-                      className="p-3 bg-gray-50 rounded"
+                      className="p-3 bg-gray-50 rounded no-select-highlight"
                       dangerouslySetInnerHTML={{
                         __html: highlightWords(sentence.english),
                       }}
@@ -143,6 +144,8 @@ export default function WordOrganization({
                         const selection = window.getSelection()
                         if (selection && selection.toString()) {
                           handleWordDoubleClick(selection.toString().trim())
+                          // 선택 해제
+                          selection.removeAllRanges()
                         }
                       }}
                     />
@@ -195,21 +198,31 @@ export default function WordOrganization({
                   className="flex items-start justify-between p-3 bg-white rounded border border-gray-200"
                 >
                   <div className="flex-1">
-                    <button
-                      onClick={() => handleToggleKnown(word.id, word.known)}
-                      className={`w-4 h-4 rounded-full mr-2 inline-block ${
-                        word.known ? '' : 'bg-gray-400'
-                      }`}
-                      style={
-                        word.known
-                          ? {
-                              backgroundImage:
-                                'linear-gradient(180deg, #C6B3FF 0%, #7556FF 100%)',
-                            }
-                          : undefined
-                      }
-                    />
-                    <span className="font-semibold">{word.word}</span>
+                    <div className="inline-flex items-center gap-2">
+                      <button
+                        onClick={() => handleToggleKnown(word.id, word.known)}
+                        className={`w-4 h-4 rounded-full mr-2 relative group ${
+                          word.known ? '' : 'bg-gray-400'
+                        }`}
+                        style={
+                          word.known
+                            ? {
+                                backgroundImage:
+                                  'linear-gradient(180deg, #C6B3FF 0%, #7556FF 100%)',
+                              }
+                            : undefined
+                        }
+                        title={word.known ? '' : '이제 아는 단어에요!'}
+                      >
+                        {!word.known && (
+                          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                            이제 아는 단어에요!
+                            <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></span>
+                          </span>
+                        )}
+                      </button>
+                      <span className="font-semibold">{word.word}</span>
+                    </div>
                     <p className="text-sm text-gray-600 mt-1">
                       {word.meaning || (
                         <button

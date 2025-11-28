@@ -119,33 +119,42 @@ class VocabularyService:
             # Study 정보도 함께 가져오기
             # study_id가 제공되지 않은 경우에만 삭제된 지문의 단어 제외
             word_list = []
-            study_title_cache = {}  # study_title 캐시
+            study_cache = {}  # study 정보 캐시 (title, last_studied_date)
             
             for word in words:
                 study_title = None
+                study_last_studied_date = None
                 
                 if word.study_id:
                     # study_id가 제공된 경우 이미 확인했으므로 캐시 사용
                     if study_id and word.study_id == study_id:
                         study_title = study.get("title")
+                        study_last_studied_date = study.get("last_studied_date")
                     else:
                         # study_id가 제공되지 않은 경우에만 확인
-                        if word.study_id not in study_title_cache:
-                            study = await self.storage_service.get_study(word.study_id)
-                            if study:
-                                study_title_cache[word.study_id] = study.get("title")
+                        if word.study_id not in study_cache:
+                            study_data = await self.storage_service.get_study(word.study_id)
+                            if study_data:
+                                study_cache[word.study_id] = {
+                                    "title": study_data.get("title"),
+                                    "last_studied_date": study_data.get("last_studied_date")
+                                }
                             else:
                                 # 지문이 삭제된 경우, 이 단어는 제외
                                 print(f"Skipping orphan word {word.id} (study_id {word.study_id} not found)")
                                 continue
-                        study_title = study_title_cache.get(word.study_id)
+                        cached_study = study_cache.get(word.study_id)
+                        if cached_study:
+                            study_title = cached_study.get("title")
+                            study_last_studied_date = cached_study.get("last_studied_date")
                 
                 word_list.append({
                     "id": word.id,
                     "word": word.word,
-                    "meaning": word.meaning,
+                    "meaning": word.meaning or "",
                     "study_id": word.study_id,
                     "study_title": study_title,
+                    "study_last_studied_date": study_last_studied_date,
                     "known": word.known
                 })
             

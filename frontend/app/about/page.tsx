@@ -2,18 +2,28 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 
 export default function AboutPage() {
+  const [animationKey, setAnimationKey] = useState(0)
+  const pathname = usePathname()
+
+  useEffect(() => {
+    // About 페이지로 이동할 때마다 애니메이션 재시작
+    setAnimationKey(prev => prev + 1)
+  }, [pathname])
+
   return (
     <div className="min-h-screen bg-black px-8 py-12">
       <div className="max-w-6xl mx-auto space-y-4">
-        <p className="text-white text-4xl font-bold" style={{ fontFamily: 'Pretendard, sans-serif' }}>
+        <p key={`about-title-${animationKey}`} className="text-white text-4xl font-bold animate-fade-in" style={{ fontFamily: 'Pretendard, sans-serif' }}>
           About
         </p>
         {/* 큰 흰색 카드 */}
         <div className="bg-white rounded-3xl px-12 pt-7 pb-0 text-[#6E6E6E] relative overflow-hidden">
           {/* 제목 */}
-          <h1 className="text-4xl font-bold mb-3" style={{ color: '#E85ADA' }}>
+          <h1 key={`why-myling-${animationKey}`} className="text-4xl font-bold mb-3 animate-slide-up" style={{ color: '#E85ADA', animationDelay: '0.1s' }}>
             Why MyLing?
           </h1>
 
@@ -22,7 +32,7 @@ export default function AboutPage() {
             {/* 왼쪽: 텍스트 콘텐츠 */}
             <div className="col-span-2 space-y-6">
               {/* MyLing 이름 설명 */}
-              <div>
+              <div key={`myling-name-${animationKey}`} className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
                 <p className="text-2xl font-semibold mb-2">
                   <span style={{ color: '#7556FF' }}>MyLing</span> ={' '}
                   <span style={{ color: '#7556FF' }}>My</span>{' '}
@@ -36,7 +46,7 @@ export default function AboutPage() {
               </div>
 
               {/* 서비스 기원 */}
-              <div className="space-y-4">
+              <div key={`service-origin-${animationKey}`} className="space-y-4 animate-fade-in" style={{ animationDelay: '0.3s' }}>
                 <p className="leading-relaxed">
                   MyLing은 고등학생 시절 영어 지문을 공부할 때 겪었던 불편함을 시작으로 만들어졌습니다.<br /> 
                   몇 번의 클릭만으로 지문을 내 마음대로 조정할 수 있다면 좋겠다는 고등학생의 생각이<br /> 
@@ -45,7 +55,7 @@ export default function AboutPage() {
               </div>
 
               {/* 서비스 목표 */}
-              <div className="space-y-4">
+              <div key={`service-goal-${animationKey}`} className="space-y-4 animate-fade-in" style={{ animationDelay: '0.4s' }}>
                 <p className="leading-relaxed">
                   항상 곁에서 학습을 도와주는 유령 '링기'가 살고 있는 MyLing은
                   몽환적인 보라색과<br /> 조명의 디자인으로 '따뜻한 나만의 학습 공간'을 만드는 것을 목표로 했습니다.
@@ -55,7 +65,7 @@ export default function AboutPage() {
 
             {/* 오른쪽: 유령 캐릭터 */}
             <div className="flex items-center justify-center">
-              <div className="relative flex items-center justify-center w-56 h-56 -translate-y-4">
+              <div key={`ghost-${animationKey}`} className="relative flex items-center justify-center w-56 h-56 -translate-y-4 animate-float">
                 <Image
                   src="/ghost_4.png"
                   alt="Lingi Ghost"
@@ -71,7 +81,7 @@ export default function AboutPage() {
           {/* 하단: 노트북 일러스트와 Developer 섹션 */}
           <div className="grid grid-cols-2 gap-6 mt-2 relative z-10">
             {/* 왼쪽: 노트북과 램프 일러스트 */}
-            <div className="relative ml-20" style={{ height: '176px' }}>
+            <div key={`lamp-desk-${animationKey}`} className="relative ml-20 animate-fade-in" style={{ height: '176px', animationDelay: '0.5s' }}>
               <Image
                 src="/lampwithdesk.png"
                 alt="Lingi lamp and desk"
@@ -84,8 +94,8 @@ export default function AboutPage() {
             </div>
 
             {/* 오른쪽: Developer 섹션 */}
-            <div className="flex flex-col items-end text-right gap-2 mt-4">
-              <h2 className="text-4xl font-bold" style={{ color: '#E85ADA' }}>
+            <div key={`developer-section-${animationKey}`} className="flex flex-col items-end text-right gap-2 mt-4 animate-fade-in" style={{ animationDelay: '0.6s' }}>
+              <h2 key={`developer-title-${animationKey}`} className="text-4xl font-bold animate-slide-up" style={{ color: '#E85ADA', animationDelay: '0.7s' }}>
                 Developer
               </h2>
               <div className="space-y-2">

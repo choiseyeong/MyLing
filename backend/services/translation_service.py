@@ -25,6 +25,12 @@ class TranslationService:
         
         self.translator = deepl.Translator(api_key)
     
+    def split_into_paragraphs(self, text: str) -> List[str]:
+        """텍스트를 문단 단위로 분리"""
+        normalized = text.replace('\r\n', '\n').replace('\r', '\n')
+        paragraphs = re.split(r'\n\s*\n', normalized)
+        return [p.strip() for p in paragraphs if p.strip()]
+    
     def split_into_sentences(self, text: str) -> List[str]:
         """텍스트를 문장 단위로 분리"""
         # 문장 끝 마크로 분리 (. ! ?)

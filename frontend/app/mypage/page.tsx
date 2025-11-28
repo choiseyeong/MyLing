@@ -8,7 +8,7 @@ import Link from 'next/link'
 export default function MyPage() {
   const router = useRouter()
   const [studies, setStudies] = useState<Study[]>([])
-  const [sortBy, setSortBy] = useState<'title' | 'recent'>('title')
+  const [sortBy, setSortBy] = useState<'title' | 'recent'>('recent')
 
   useEffect(() => {
     loadStudies()
@@ -140,7 +140,6 @@ export default function MyPage() {
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  // current_step 정보를 URL에 포함하여 전달
                   router.push(`/learn?studyId=${study.id}&step=${study.current_step}`)
                 }}
                 className="mt-4 px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark float-right"

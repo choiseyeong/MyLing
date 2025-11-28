@@ -97,6 +97,14 @@ storage_service = StorageService()
 vocabulary_service = VocabularyService()
 dictionary_service = DictionaryService(translation_service=translation_service)
 
+# 서버 시작 시 데이터베이스 초기화
+@app.on_event("startup")
+async def startup_event():
+    """서버 시작 시 실행"""
+    print("Initializing database...")
+    await storage_service.init_db()
+    print("Database initialized successfully!")
+
 @app.get("/")
 async def root():
     return {"message": "MyLing API is running"}
@@ -145,26 +153,30 @@ async def upload_file(file: UploadFile = File(...)):
 async def translate_text(request: TranslationRequest):
     """Translate English text to Korean"""
     try:
-        # 텍스트를 문장 단위로 분리
-        sentences = translation_service.split_into_sentences(request.text)
+        # 텍스트를 문단 -> 문장 단위로 분리
+        paragraphs = translation_service.split_into_paragraphs(request.text)
+        if not paragraphs and request.text.strip():
+            paragraphs = [request.text.strip()]
         
-        # 각 문장을 번역
-        translated_pairs = []
-        for sentence in sentences:
-            if sentence.strip():
-                korean = await translation_service.translate(sentence)
-                translated_pairs.append({
-                    "english": sentence.strip(),
-                    "korean": korean
-                })
+        translated_paragraphs = []
+        for paragraph in paragraphs:
+            sentences = translation_service.split_into_sentences(paragraph)
+            translated_pairs = []
+            for sentence in sentences:
+                if sentence.strip():
+                    korean = await translation_service.translate(sentence)
+                    translated_pairs.append({
+                        "english": sentence.strip(),
+                        "korean": korean
+                    })
+            if translated_pairs:
+                translated_paragraphs.append({"sentences": translated_pairs})
         
         # 단어 추출
         words = vocabulary_service.extract_words(request.text)
         
         return TranslationResponse(
-            paragraphs=[{
-                "sentences": translated_pairs
-            }],
+            paragraphs=translated_paragraphs,
             words=words
         )
     except Exception as e:

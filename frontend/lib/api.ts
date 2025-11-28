@@ -37,6 +37,7 @@ export interface Word {
   meaning: string
   study_id?: number
   study_title?: string
+  study_last_studied_date?: string
   known: boolean
 }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { apiClient, Word } from '@/lib/api'
 
 export default function VocabularyPage() {
@@ -9,37 +9,24 @@ export default function VocabularyPage() {
   const [filter, setFilter] = useState<'all' | 'by-passage'>('all')
   const [selectedStudyId, setSelectedStudyId] = useState<number | null>(null)
   const [showUnknownOnly, setShowUnknownOnly] = useState(false)
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc') // 내림차순이 기본 (최근 학습한 지문이 위)
 
   useEffect(() => {
     loadWords()
-  }, [filter, selectedStudyId])
+  }, [])
 
-  // showUnknownOnly 변경 시에는 로딩 없이 클라이언트 측에서만 필터링
   useEffect(() => {
-    if (allWords.length > 0) {
-      if (showUnknownOnly) {
-        setWords(allWords.filter((word) => !word.known))
-      } else {
-        setWords(allWords)
-      }
-    }
-  }, [showUnknownOnly, allWords])
+    setWords(applyFilters(allWords))
+  }, [allWords, filter, selectedStudyId, showUnknownOnly, sortOrder])
 
   const loadWords = async () => {
     try {
-      const data = await apiClient.getVocabulary(
-        filter === 'by-passage' ? selectedStudyId || undefined : undefined
-      )
+      const data = await apiClient.getVocabulary()
 
       // 원본 데이터 저장
       setAllWords(data)
 
-      // 필터 적용
-      if (showUnknownOnly) {
-        setWords(data.filter((word) => !word.known))
-      } else {
-        setWords(data)
-      }
+      setWords(applyFilters(data))
     } catch (error) {
       console.error('Failed to load words:', error)
     }
@@ -80,11 +67,9 @@ export default function VocabularyPage() {
 
     try {
       await apiClient.markWord(wordId, !currentKnown)
-      const data = await apiClient.getVocabulary(
-        filter === 'by-passage' ? selectedStudyId || undefined : undefined
-      )
+      const data = await apiClient.getVocabulary()
       setAllWords(data)
-      setWords(showUnknownOnly ? data.filter((word) => !word.known) : data)
+      setWords(applyFilters(data))
     } catch (error) {
       console.error('Failed to mark word:', error)
       // 실패 시 원래 상태로 복구
@@ -101,13 +86,46 @@ export default function VocabularyPage() {
     }
   }
 
-  const uniqueStudies = Array.from(
-    new Map(
-      words
-        .filter((w) => w.study_id)
-        .map((w) => [w.study_id, w.study_title])
-    ).entries()
+  const uniqueStudies = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          allWords
+            .filter((w) => w.study_id)
+            .map((w) => [w.study_id, w.study_title])
+        ).entries()
+      ),
+    [allWords]
   )
+
+  function applyFilters(source: Word[]) {
+    let filtered = source
+    if (filter === 'by-passage') {
+      filtered = selectedStudyId
+        ? filtered.filter((word) => word.study_id === selectedStudyId)
+        : filtered
+    }
+    if (showUnknownOnly) {
+      filtered = filtered.filter((word) => !word.known)
+    }
+    
+    // 정렬: 최근 학습한 지문의 단어가 위에 오도록 (기본: 내림차순)
+    filtered = [...filtered].sort((a, b) => {
+      // study_last_studied_date가 있으면 그것을 사용, 없으면 study_id 사용
+      const dateA = a.study_last_studied_date || (a.study_id ? String(a.study_id) : '0')
+      const dateB = b.study_last_studied_date || (b.study_id ? String(b.study_id) : '0')
+      
+      if (sortOrder === 'desc') {
+        // 내림차순: 최근 학습한 것이 위
+        return dateB.localeCompare(dateA)
+      } else {
+        // 오름차순: 오래된 것이 위
+        return dateA.localeCompare(dateB)
+      }
+    })
+    
+    return filtered
+  }
 
   return (
     <div className="min-h-screen px-8 py-8">
@@ -174,7 +192,21 @@ export default function VocabularyPage() {
             <div className={filter === 'by-passage' ? 'col-span-3' : 'col-span-4'}>
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-semibold">단어 목록</h3>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-gray-600">정렬:</label>
+                    <select
+                      value={sortOrder}
+                      onChange={(e) => setSortOrder(e.target.value as 'desc' | 'asc')}
+                      className="px-3 py-1 text-sm border border-gray-300 rounded-lg text-gray-700 focus:outline-none focus:border-gray-400"
+                      style={{
+                        backgroundColor: '#F3F0FF',
+                      }}
+                    >
+                      <option value="desc">최근 학습순 (내림차순)</option>
+                      <option value="asc">오래된 학습순 (오름차순)</option>
+                    </select>
+                  </div>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
@@ -217,23 +249,33 @@ export default function VocabularyPage() {
                     words.map((word) => (
                       <tr key={word.id} className="border-b hover:bg-gray-50">
                         <td className="py-3">
-                          <button
-                            onClick={() =>
-                              handleToggleKnown(word.id, word.known)
-                            }
-                            className={`w-4 h-4 rounded-full mr-2 ${
-                              word.known ? '' : 'bg-gray-400'
-                            }`}
-                            style={
-                              word.known
-                                ? {
-                                    backgroundImage:
-                                      'linear-gradient(180deg, #C6B3FF 0%, #7556FF 100%)',
-                                  }
-                                : undefined
-                            }
-                          />
-                          {word.word}
+                          <div className="inline-flex items-center gap-2">
+                            <button
+                              onClick={() =>
+                                handleToggleKnown(word.id, word.known)
+                              }
+                              className={`w-4 h-4 rounded-full mr-2 relative group ${
+                                word.known ? '' : 'bg-gray-400'
+                              }`}
+                              style={
+                                word.known
+                                  ? {
+                                      backgroundImage:
+                                        'linear-gradient(180deg, #C6B3FF 0%, #7556FF 100%)',
+                                    }
+                                  : undefined
+                              }
+                              title={word.known ? '' : '이제 아는 단어에요!'}
+                            >
+                              {!word.known && (
+                                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-800 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                  이제 아는 단어에요!
+                                  <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></span>
+                                </span>
+                              )}
+                            </button>
+                            {word.word}
+                          </div>
                         </td>
                         <td className="py-3">
                           {word.meaning ? (

@@ -17,6 +17,7 @@ class Study(Base):
     paragraphs = Column(Text)  # JSON string
     current_step = Column(Integer, default=1)
     word_count = Column(Integer, default=0)
+    topic = Column(String, nullable=True)  # 주제 분류
     last_studied_date = Column(DateTime, default=datetime.now)
     created_at = Column(DateTime, default=datetime.now)
 
@@ -48,6 +49,32 @@ class StorageService:
         if not self._initialized:
             async with self.engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
+            
+            # topic 컬럼이 없으면 추가 (기존 DB 마이그레이션)
+            try:
+                from sqlalchemy import text
+                # 직접 SQL로 컬럼 존재 여부 확인
+                async with self.engine.begin() as conn:
+                    # SQLite에서 컬럼 존재 여부 확인
+                    result = await conn.execute(
+                        text("PRAGMA table_info(studies)")
+                    )
+                    columns = [row[1] for row in result.fetchall()]  # row[1]이 컬럼명
+                    
+                    if 'topic' not in columns:
+                        print("⚠️ 'topic' column not found. Adding it now...")
+                        await conn.execute(
+                            text("ALTER TABLE studies ADD COLUMN topic VARCHAR")
+                        )
+                        # begin() 컨텍스트 매니저가 자동으로 커밋함
+                        print("✅ Successfully added 'topic' column to studies table")
+                    else:
+                        print("✅ 'topic' column already exists")
+            except Exception as e:
+                import traceback
+                print(f"⚠️ Warning: Could not add topic column: {e}")
+                traceback.print_exc()
+            
             self._initialized = True
     
     async def save_study(self, title: str, english_text: str, korean_text: str, 
@@ -72,6 +99,7 @@ class StorageService:
                         paragraphs=paragraphs_json,
                         current_step=current_step,
                         word_count=len(words) if words else 0,
+                        topic=None,  # 초기 저장 시 topic은 None
                         last_studied_date=datetime.now()
                     )
                     session.add(study)
@@ -150,12 +178,54 @@ class StorageService:
             result = await session.execute(select(Study).where(Study.id == study_id))
             study = result.scalar_one_or_none()
             if study:
+                # paragraphs 파싱 (안전하게 처리)
+                paragraphs = []
+                if study.paragraphs:
+                    try:
+                        parsed = json.loads(study.paragraphs)
+                        # 파싱된 결과가 배열인지 확인
+                        if isinstance(parsed, list):
+                            paragraphs = parsed
+                        elif isinstance(parsed, dict) and 'paragraphs' in parsed:
+                            # 중첩된 구조인 경우
+                            paragraphs = parsed['paragraphs'] if isinstance(parsed['paragraphs'], list) else []
+                        else:
+                            print(f"Warning: Unexpected paragraphs format for study {study_id}: {type(parsed)}")
+                            print(f"Parsed content: {str(parsed)[:500]}")
+                            paragraphs = []
+                    except json.JSONDecodeError as e:
+                        print(f"Error parsing paragraphs for study {study_id}: {e}")
+                        print(f"Raw paragraphs (first 500 chars): {str(study.paragraphs)[:500]}")
+                        paragraphs = []
+                    except Exception as e:
+                        print(f"Unexpected error parsing paragraphs for study {study_id}: {e}")
+                        import traceback
+                        traceback.print_exc()
+                        paragraphs = []
+                
+                # paragraphs가 비어있고 english_text/korean_text가 있으면 재구성 시도
+                if not paragraphs and (study.english_text or study.korean_text):
+                    print(f"Warning: Study {study_id} has no paragraphs but has text. Attempting to reconstruct...")
+                    # 이 경우 프론트엔드에서 처리하도록 빈 배열 반환
+                    # (프론트엔드에서 english_text/korean_text로부터 재구성 가능)
+                
+                # 디버깅 정보 출력
+                print(f"Study {study_id} loaded:")
+                print(f"  - Title: {study.title}")
+                print(f"  - Current step: {study.current_step}")
+                print(f"  - Paragraphs count: {len(paragraphs)}")
+                print(f"  - Has english_text: {bool(study.english_text)}")
+                print(f"  - Has korean_text: {bool(study.korean_text)}")
+                if study.paragraphs:
+                    print(f"  - Raw paragraphs length: {len(str(study.paragraphs))}")
+                    print(f"  - Raw paragraphs preview: {str(study.paragraphs)[:100]}...")
+                
                 return {
                     "id": study.id,
                     "title": study.title,
                     "english_text": study.english_text,
                     "korean_text": study.korean_text,
-                    "paragraphs": json.loads(study.paragraphs) if study.paragraphs else [],
+                    "paragraphs": paragraphs,
                     "current_step": study.current_step,
                     "word_count": study.word_count,
                     "last_studied_date": study.last_studied_date.strftime("%Y.%m.%d") if study.last_studied_date else None,
