@@ -64,6 +64,15 @@ export default function LearnPage() {
     }
   }, [searchParams])
 
+  // step 3일 때 translationData가 없으면 step 2로 자동 리다이렉트
+  // (step 2에서는 translationData가 없어도 번역 시작 화면이 표시되므로 괜찮음)
+  useEffect(() => {
+    if (step === 3 && !translationData && !loading && savedStudyId) {
+      console.log('⚠️ Step 3 requires translationData but it is missing. Redirecting to step 2.')
+      router.push(`/learn?studyId=${savedStudyId}&step=2`)
+    }
+  }, [step, translationData, loading, savedStudyId, router])
+
   const loadStudy = async (studyId: number, urlStep: number | null = null) => {
     setLoading(true)
     try {
@@ -145,11 +154,15 @@ export default function LearnPage() {
         
         // translationData 설정
         // paragraphs가 있으면 반드시 translationData 설정
+        let finalTranslationData: any = null
+        let hasTranslationData = false
+        
         if (paragraphs.length > 0) {
-          setTranslationData({
+          finalTranslationData = {
             paragraphs: paragraphs,
             words: []
-          })
+          }
+          hasTranslationData = true
           console.log('✅ TranslationData set successfully with', paragraphs.length, 'paragraphs')
         } else if (study.english_text && study.korean_text) {
           // paragraphs가 없지만 english_text와 korean_text가 있으면 재구성 시도
@@ -170,21 +183,24 @@ export default function LearnPage() {
             }]
             
             if (reconstructedParagraphs[0].sentences.length > 0) {
-              setTranslationData({
+              finalTranslationData = {
                 paragraphs: reconstructedParagraphs,
                 words: []
-              })
+              }
+              hasTranslationData = true
               console.log('✅ TranslationData reconstructed from english/korean text with', reconstructedParagraphs[0].sentences.length, 'sentences')
             } else {
-              setTranslationData(null)
               console.error('❌ Failed to reconstruct paragraphs from text')
             }
           } catch (e) {
             console.error('❌ Error reconstructing paragraphs:', e)
-            setTranslationData(null)
           }
+        }
+        
+        // translationData 설정 (재구성된 경우도 포함)
+        if (finalTranslationData) {
+          setTranslationData(finalTranslationData)
         } else {
-          // paragraphs가 없으면 null로 설정
           setTranslationData(null)
           console.error('❌ No paragraphs found!', {
             study_id: study.id,
@@ -199,19 +215,30 @@ export default function LearnPage() {
         
         // step 설정: URL 파라미터의 step을 우선 사용, 없으면 current_step 사용
         // step1에서 중단하는 경우는 없으므로, step2나 step3에서만 중단 가능
+        // 중요한 점: URL step 파라미터를 최우선으로 존중
         let targetStep: number
         
         // URL에 step 파라미터가 있고 유효하면 우선 사용 (2, 3만 허용, step1은 새 학습이므로)
         if (urlStep && (urlStep === 2 || urlStep === 3)) {
+          // URL step 파라미터를 최우선으로 존중
+          // translationData가 없어도 URL step을 따라감 (나중에 useEffect에서 처리)
           targetStep = urlStep
-          console.log('✅ Using URL step parameter:', urlStep)
+          if (hasTranslationData) {
+            console.log('✅ Using URL step parameter:', urlStep, 'with translationData')
+          } else {
+            console.warn('⚠️ URL step', urlStep, 'specified but translationData is missing. Will attempt to load or redirect.')
+          }
         } else {
           // URL step이 없으면 current_step 사용
           // current_step이 2 또는 3이면 그대로 사용
           if (study.current_step === 2 || study.current_step === 3) {
             targetStep = study.current_step
-            console.log('✅ Using DB current_step:', study.current_step)
-          } else if (paragraphs.length > 0) {
+            if (hasTranslationData) {
+              console.log('✅ Using DB current_step:', study.current_step, 'with translationData')
+            } else {
+              console.warn('⚠️ DB current_step', study.current_step, 'but translationData is missing. Will attempt to load or redirect.')
+            }
+          } else if (hasTranslationData) {
             // paragraphs가 있으면 번역이 완료된 상태이므로 step 2로 설정
             targetStep = 2
             console.log('✅ Paragraphs exist, defaulting to step 2')
@@ -222,8 +249,8 @@ export default function LearnPage() {
           }
         }
         
-        // step 설정 (URL 파라미터가 있으면 우선 사용, 없으면 DB의 current_step 사용)
-        console.log('🎯 Final target step:', targetStep)
+        // step 설정 (URL step 파라미터를 최우선으로 존중)
+        console.log('🎯 Final target step:', targetStep, 'with translationData:', hasTranslationData)
         setStep(targetStep)
         
         console.log('Loaded study:', {
@@ -455,21 +482,10 @@ export default function LearnPage() {
             />
           ) : (
             <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-primary mx-auto mb-4"></div>
               <p className="text-lg text-gray-600 mb-4">
-                번역 데이터를 불러올 수 없습니다.
+                번역 데이터를 불러오는 중...
               </p>
-              <button
-                onClick={() => {
-                  if (savedStudyId) {
-                    router.push(`/learn?studyId=${savedStudyId}&step=2`)
-                  } else {
-                    router.push('/learn')
-                  }
-                }}
-                className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark"
-              >
-                번역하기로 돌아가기
-              </button>
             </div>
           )
         )}

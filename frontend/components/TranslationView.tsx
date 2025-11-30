@@ -1,5 +1,9 @@
 'use client'
 
+import { useState, useEffect } from 'react'
+import { generatePDFStep2 } from '@/lib/pdfGenerator'
+import Toast from './Toast'
+
 interface TranslationViewProps {
   title: string
   onTitleChange: (title: string) => void
@@ -23,6 +27,15 @@ export default function TranslationView({
   onGoToWordOrganization,
   saved,
 }: TranslationViewProps) {
+  const [showPdfWarningToast, setShowPdfWarningToast] = useState(false)
+
+  // 토스트 자동 닫기
+  useEffect(() => {
+    if (showPdfWarningToast) {
+      const timer = setTimeout(() => setShowPdfWarningToast(false), 2500)
+      return () => clearTimeout(timer)
+    }
+  }, [showPdfWarningToast])
   if (isTranslating) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
@@ -92,7 +105,30 @@ export default function TranslationView({
           >
             {saved ? '내 학습에 저장됨' : '내 학습에 저장'}
           </button>
-          <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+          <button
+            onClick={async () => {
+              if (!translationData) {
+                setShowPdfWarningToast(true)
+                return
+              }
+              if (!saved) {
+                setShowPdfWarningToast(true)
+                return
+              }
+              try {
+                await generatePDFStep2(title || '제목 없음', translationData)
+              } catch (error) {
+                console.error('PDF 생성 실패:', error)
+                setShowPdfWarningToast(true)
+              }
+            }}
+            className={`px-4 py-2 rounded-lg ${
+              saved
+                ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+            }`}
+            disabled={!saved}
+          >
             PDF 저장하기
           </button>
           <button
@@ -128,6 +164,17 @@ export default function TranslationView({
             </div>
           </div>
         ))}
+      </div>
+
+      {/* PDF 저장 경고 토스트 */}
+      <div
+        className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${
+          showPdfWarningToast ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
+        }`}
+      >
+        <div className="bg-gray-900 text-white px-6 py-3 rounded-full shadow-lg text-sm">
+          먼저 내 학습에 저장을 완료해 주세요.
+        </div>
       </div>
     </div>
   )
