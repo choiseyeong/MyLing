@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient, Word } from '@/lib/api'
+import { generatePDFStep3 } from '@/lib/pdfGenerator'
 
 interface WordOrganizationProps {
   title: string
@@ -162,25 +163,40 @@ export default function WordOrganization({
 
         {/* 오른쪽: 단어장 */}
         <div className="col-span-1">
-        <div className="flex gap-3 mb-4 flex-wrap justify-between">
-          <button
-            onClick={handleResetAll}
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold"
-          >
-            단어 전체 초기화
-          </button>
-          <button className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark font-semibold">
-            PDF 저장하기 &gt;
-          </button>
-          <button
-            onClick={() => router.push('/')}
-            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark font-semibold"
-          >
-            홈으로
-          </button>
-        </div>
+        <div className="sticky top-8">
+          <div className="flex gap-3 mb-4 flex-wrap justify-between">
+            <button
+              onClick={handleResetAll}
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold"
+            >
+              단어 전체 초기화
+            </button>
+            <button
+              onClick={async () => {
+                if (!translationData) {
+                  alert('번역 데이터가 없습니다.')
+                  return
+                }
+                try {
+                  await generatePDFStep3(title || '제목 없음', translationData, words)
+                } catch (error) {
+                  console.error('PDF 생성 실패:', error)
+                  alert('PDF 생성에 실패했습니다.')
+                }
+              }}
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark font-semibold"
+            >
+              PDF 저장하기 &gt;
+            </button>
+            <button
+              onClick={() => router.push('/')}
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark font-semibold"
+            >
+              홈으로
+            </button>
+          </div>
 
-        <div className="bg-gray-50 rounded-lg p-4">
+          <div className="bg-gray-50 rounded-lg p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
           <h3 className="font-semibold mb-4">나의 단어장</h3>
           {words.length === 0 ? (
             <div className="text-center py-12">
@@ -257,6 +273,7 @@ export default function WordOrganization({
               ))}
             </div>
           )}
+          </div>
         </div>
         </div>
       </div>

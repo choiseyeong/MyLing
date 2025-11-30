@@ -10,6 +10,8 @@ export default function VocabularyPage() {
   const [selectedStudyId, setSelectedStudyId] = useState<number | null>(null)
   const [showUnknownOnly, setShowUnknownOnly] = useState(false)
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc') // 내림차순이 기본 (최근 학습한 지문이 위)
+  const [fadingOutWords, setFadingOutWords] = useState<Set<number>>(new Set()) // 페이드아웃 중인 단어들
+  const [undoQueue, setUndoQueue] = useState<Map<number, NodeJS.Timeout>>(new Map()) // 복구 가능한 단어들의 타이머
 
   useEffect(() => {
     loadWords()
@@ -53,15 +55,79 @@ export default function VocabularyPage() {
   }
 
   const handleToggleKnown = async (wordId: number, currentKnown: boolean) => {
-    // 옵티미스틱 업데이트: UI 및 원본 데이터 동기화
+    const word = words.find(w => w.id === wordId)
+    if (!word) return
+
+    // 페이드아웃 중인 단어를 다시 클릭한 경우 (복구)
+    if (fadingOutWords.has(wordId)) {
+      const timeoutId = undoQueue.get(wordId)
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+        setUndoQueue(prev => {
+          const newMap = new Map(prev)
+          newMap.delete(wordId)
+          return newMap
+        })
+        setFadingOutWords(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(wordId)
+          return newSet
+        })
+      }
+      return
+    }
+
+    // 모르는 단어 보기가 켜져 있고, 단어를 "알고 있음"으로 변경하는 경우
+    if (showUnknownOnly && !currentKnown) {
+      // 페이드아웃 시작
+      setFadingOutWords(prev => new Set(prev).add(wordId))
+      
+      // 4초 후 실제로 제거
+      const timeoutId = setTimeout(() => {
+        setFadingOutWords(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(wordId)
+          return newSet
+        })
+        
+        // 실제 상태 업데이트
+        setWords((prevWords) =>
+          prevWords.map((w) =>
+            w.id === wordId ? { ...w, known: true } : w
+          )
+        )
+        setAllWords((prevWords) =>
+          prevWords.map((w) =>
+            w.id === wordId ? { ...w, known: true } : w
+          )
+        )
+        
+        // API 호출
+        apiClient.markWord(wordId, true).catch(console.error)
+        
+        // 복구 큐에서 제거
+        setUndoQueue(prev => {
+          const newMap = new Map(prev)
+          newMap.delete(wordId)
+          return newMap
+        })
+      }, 4000)
+      
+      // 복구 큐에 추가
+      setUndoQueue(prev => new Map(prev).set(wordId, timeoutId))
+      
+      return
+    }
+
+    // 일반적인 경우 (즉시 업데이트)
     setWords((prevWords) =>
-      prevWords.map((word) =>
-        word.id === wordId ? { ...word, known: !currentKnown } : word
+      prevWords.map((w) =>
+        w.id === wordId ? { ...w, known: !currentKnown } : w
       )
     )
     setAllWords((prevWords) =>
-      prevWords.map((word) =>
-        word.id === wordId ? { ...word, known: !currentKnown } : word
+      prevWords.map((w) =>
+        w.id === wordId ? { ...w, known: !currentKnown } : w
       )
     )
 
@@ -74,13 +140,13 @@ export default function VocabularyPage() {
       console.error('Failed to mark word:', error)
       // 실패 시 원래 상태로 복구
       setWords((prevWords) =>
-        prevWords.map((word) =>
-          word.id === wordId ? { ...word, known: currentKnown } : word
+        prevWords.map((w) =>
+          w.id === wordId ? { ...w, known: currentKnown } : w
         )
       )
       setAllWords((prevWords) =>
-        prevWords.map((word) =>
-          word.id === wordId ? { ...word, known: currentKnown } : word
+        prevWords.map((w) =>
+          w.id === wordId ? { ...w, known: currentKnown } : w
         )
       )
     }
@@ -227,15 +293,15 @@ export default function VocabularyPage() {
                 </div>
               </div>
 
-              <table className="w-full">
+              <table className="w-full table-fixed">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-2">단어</th>
-                    <th className="text-left py-2">뜻</th>
+                    <th className="text-left py-2 w-1/8">단어</th>
+                    <th className="text-left py-2" style={{ width: '45%' }}>뜻</th>
                     {filter === 'all' && (
-                      <th className="text-left py-2">출처(지문 제목)</th>
+                      <th className="text-left py-2" style={{ width: '30%' }}>출처(지문 제목)</th>
                     )}
-                    <th className="text-right py-2"></th>
+                    <th className="text-right py-2 w-1/12"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -246,8 +312,17 @@ export default function VocabularyPage() {
                       </td>
                     </tr>
                   ) : (
-                    words.map((word) => (
-                      <tr key={word.id} className="border-b hover:bg-gray-50">
+                    words.map((word) => {
+                      const isFadingOut = fadingOutWords.has(word.id)
+                      
+                      return (
+                      <tr 
+                        key={word.id} 
+                        className={`border-b hover:bg-gray-50 transition-opacity ${
+                          isFadingOut ? 'opacity-0' : 'opacity-100'
+                        }`}
+                        style={isFadingOut ? { transitionDuration: '4000ms' } : {}}
+                      >
                         <td className="py-3">
                           <div className="inline-flex items-center gap-2">
                             <button
@@ -279,7 +354,9 @@ export default function VocabularyPage() {
                         </td>
                         <td className="py-3">
                           {word.meaning ? (
-                            word.meaning
+                            <div className="break-words">
+                              {word.meaning}
+                            </div>
                           ) : (
                             <div className="flex items-center gap-2">
                               <span className="text-gray-400">-</span>
@@ -306,7 +383,7 @@ export default function VocabularyPage() {
                           )}
                         </td>
                         {filter === 'all' && (
-                          <td className="py-3 text-gray-600">
+                          <td className="py-3 text-gray-600 whitespace-nowrap">
                             {word.study_title || '-'}
                           </td>
                         )}
@@ -319,7 +396,8 @@ export default function VocabularyPage() {
                           </button>
                         </td>
                       </tr>
-                    ))
+                      )
+                    })
                   )}
                 </tbody>
               </table>
