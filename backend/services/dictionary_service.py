@@ -30,6 +30,10 @@ class DictionaryService:
                 # "의미" 같은 불필요한 단어 제거
                 if result.endswith('의미'):
                     result = result[:-2].strip()
+                
+                # 쉼표나 세미콜론으로 구분된 뜻 필터링 (20글자 초과 제거)
+                result = self._filter_long_meanings(result)
+                
                 if not result.endswith('.'):
                     result += "."
                 print(f"✅ [DictionaryService] Fallback translation: '{result}'")
@@ -186,6 +190,9 @@ class DictionaryService:
                 # 최종 결과: "달리다. 작동하다. 운영하다." 형식
                 result = ". ".join(formatted_meanings)
                 
+                # 쉼표나 세미콜론으로 구분된 뜻 필터링 (20글자 초과 제거)
+                result = self._filter_long_meanings(result)
+                
                 # 마지막 마침표 확인
                 if not result.endswith('.'):
                     result += "."
@@ -211,3 +218,51 @@ class DictionaryService:
             traceback.print_exc()
             print(f"   🔄 Falling back to DeepL direct translation...")
             return await self._fallback_to_deepl(word_clean)
+    
+    def _filter_long_meanings(self, meaning: str) -> str:
+        """
+        쉼표(,) 또는 세미콜론(;)으로 구분된 뜻 중 20글자 초과인 뜻을 제거합니다.
+        3개 이상의 뜻이 있을 때만 필터링을 적용합니다.
+        
+        Args:
+            meaning: 필터링할 뜻 문자열
+            
+        Returns:
+            필터링된 뜻 문자열
+        """
+        if not meaning:
+            return meaning
+        
+        # 쉼표나 세미콜론으로 분리하여 뜻 개수 확인
+        # 먼저 세미콜론으로 분리
+        parts_by_semicolon = meaning.split(';')
+        all_meanings = []
+        
+        for part in parts_by_semicolon:
+            # 각 부분을 쉼표로 다시 분리
+            parts_by_comma = part.split(',')
+            for subpart in parts_by_comma:
+                subpart = subpart.strip()
+                if subpart:
+                    all_meanings.append(subpart)
+        
+        # 3개 미만이면 필터링하지 않음
+        if len(all_meanings) < 3:
+            return meaning
+        
+        # 3개 이상일 때만 필터링 적용
+        filtered_meanings = []
+        for meaning_item in all_meanings:
+            # 20글자 이하인 것만 유지
+            if len(meaning_item) <= 20:
+                filtered_meanings.append(meaning_item)
+        
+        # 필터링된 뜻이 없으면 원본 반환
+        if not filtered_meanings:
+            return meaning
+        
+        # 원본에 세미콜론이 있었는지 확인하여 구분자 결정
+        if ';' in meaning:
+            return '; '.join(filtered_meanings)
+        else:
+            return ', '.join(filtered_meanings)

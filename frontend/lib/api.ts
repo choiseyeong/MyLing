@@ -20,6 +20,7 @@ export interface TranslationResponse {
     word: string
     meaning: string
   }>
+  topic?: string
 }
 
 export interface Study {
@@ -29,6 +30,7 @@ export interface Study {
   word_count: number
   current_step: number
   created_at: string
+  topic?: string
 }
 
 export interface Word {
@@ -37,7 +39,6 @@ export interface Word {
   meaning: string
   study_id?: number
   study_title?: string
-  study_last_studied_date?: string
   known: boolean
 }
 
@@ -73,6 +74,7 @@ export const apiClient = {
     }>
     current_step: number
     words?: Array<{ word: string; meaning: string }>
+    topic?: string
   }) => {
     try {
       const response = await api.post('/api/study/save', data)

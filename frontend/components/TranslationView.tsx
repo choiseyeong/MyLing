@@ -1,8 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import { generatePDFStep2 } from '@/lib/pdfGenerator'
-import Toast from './Toast'
 
 interface TranslationViewProps {
   title: string
@@ -14,6 +12,8 @@ interface TranslationViewProps {
   onSave: () => void
   onGoToWordOrganization: () => void
   saved: boolean
+  onShowPdfWarning?: () => void
+  uploadedFiles?: File[]
 }
 
 export default function TranslationView({
@@ -26,22 +26,125 @@ export default function TranslationView({
   onSave,
   onGoToWordOrganization,
   saved,
+  onShowPdfWarning,
+  uploadedFiles = [],
 }: TranslationViewProps) {
-  const [showPdfWarningToast, setShowPdfWarningToast] = useState(false)
-
-  // 토스트 자동 닫기
-  useEffect(() => {
-    if (showPdfWarningToast) {
-      const timer = setTimeout(() => setShowPdfWarningToast(false), 2500)
-      return () => clearTimeout(timer)
+  // 주제 색상 가져오기
+  const getTopicColor = (topic: string | undefined) => {
+    if (!topic) return { bg: 'bg-gray-100', text: 'text-gray-600', hover: 'hover:bg-gray-200' }
+    
+    switch (topic) {
+      case '인문':
+      case '인문·사회':
+        return { bg: '#3B82F6', text: 'text-white', hover: 'hover:opacity-90' } // 파란계열
+      case '자연과학':
+        return { bg: '#10B981', text: 'text-white', hover: 'hover:opacity-90' } // 초록
+      case '공학·기술':
+        return { bg: '#F59E0B', text: 'text-white', hover: 'hover:opacity-90' } // 노랑~주황
+      case '예술·문화':
+        return { bg: '#EC4899', text: 'text-white', hover: 'hover:opacity-90' } // 분홍
+      case '기타':
+        return { bg: 'bg-gray-100', text: 'text-gray-600', hover: 'hover:bg-gray-200' }
+      default:
+        return { bg: 'bg-gray-100', text: 'text-gray-600', hover: 'hover:bg-gray-200' }
     }
-  }, [showPdfWarningToast])
+  }
+
+  // 주제 텍스트 통일
+  const normalizeTopic = (topic: string | undefined): string => {
+    if (!topic) return ''
+    switch (topic) {
+      case '인문':
+        return '인문·사회'
+      case '자연과학':
+        return '자연과학'
+      case '공학·기술':
+        return '공학·기술'
+      case '예술·문화':
+        return '예술·문화'
+      default:
+        return topic
+    }
+  }
+
+  // 파일명 추출 (확장자 제거)
+  const getFileNamePlaceholder = () => {
+    if (uploadedFiles.length === 0) {
+      return '제목을 입력해 주세요.'
+    }
+    
+    if (uploadedFiles.length === 1) {
+      const fileName = uploadedFiles[0].name
+      // 확장자 제거
+      const nameWithoutExt = fileName.replace(/\.[^/.]+$/, '')
+      return nameWithoutExt || fileName
+    }
+    
+    // 여러 파일인 경우 첫 번째 파일명 사용
+    const firstFileName = uploadedFiles[0].name
+    const nameWithoutExt = firstFileName.replace(/\.[^/.]+$/, '')
+    return `${nameWithoutExt || firstFileName} 외 ${uploadedFiles.length - 1}개`
+  }
+  const handlePdfSave = async () => {
+    if (!saved) {
+      if (onShowPdfWarning) {
+        onShowPdfWarning()
+      }
+      return
+    }
+
+    if (!title || !translationData) {
+      alert('제목과 번역 데이터가 필요합니다.')
+      return
+    }
+
+    try {
+      await generatePDFStep2(title, translationData.paragraphs)
+    } catch (error) {
+      console.error('PDF generation failed:', error)
+      alert('PDF 생성에 실패했습니다.')
+    }
+  }
   if (isTranslating) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-primary mb-4"></div>
-        <p className="text-xl mb-2">번역 중입니다...</p>
-        <p className="text-gray-600">AI가 한 줄씩 분석하고 있어요.</p>
+        {/* 동적 로딩 애니메이션 */}
+        <div className="relative mb-6">
+          {/* 외부 회전 링 */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-20 h-20 border-4 border-purple-200 rounded-full animate-spin" style={{ animationDuration: '2s' }}></div>
+          </div>
+          {/* 내부 펄스 링 */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-16 h-16 border-4 border-primary rounded-full animate-pulse"></div>
+          </div>
+          {/* 중앙 점들 */}
+          <div className="relative w-20 h-20 flex items-center justify-center">
+            <div className="flex gap-1">
+              <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0s', animationDuration: '1.4s' }}></div>
+              <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s', animationDuration: '1.4s' }}></div>
+              <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.4s', animationDuration: '1.4s' }}></div>
+            </div>
+          </div>
+        </div>
+        
+        {/* 텍스트 애니메이션 */}
+        <div className="text-center">
+          <p className="text-xl mb-2 font-semibold">
+            번역 중입니다
+            <span className="inline-block ml-1">
+              <span className="animate-pulse" style={{ animationDelay: '0s' }}>.</span>
+              <span className="animate-pulse" style={{ animationDelay: '0.3s' }}>.</span>
+              <span className="animate-pulse" style={{ animationDelay: '0.6s' }}>.</span>
+            </span>
+          </p>
+          <p className="text-gray-600 animate-pulse">AI가 한 줄씩 분석하고 있어요</p>
+        </div>
+        
+        {/* 진행 바 애니메이션 */}
+        <div className="w-64 h-1 bg-gray-200 rounded-full mt-6 overflow-hidden">
+          <div className="h-full bg-gradient-to-r from-purple-400 via-primary to-purple-400 rounded-full animate-progress"></div>
+        </div>
       </div>
     )
   }
@@ -85,13 +188,35 @@ export default function TranslationView({
       {/* 제목 및 액션 버튼 */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex-1">
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => onTitleChange(e.target.value)}
-            placeholder="제목을 입력해 주세요."
-            className="text-2xl font-bold border-b-2 border-gray-300 focus:border-primary outline-none w-full"
-          />
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => onTitleChange(e.target.value)}
+              placeholder={getFileNamePlaceholder()}
+              className="text-2xl font-bold border-b-2 border-gray-300 focus:border-primary outline-none flex-1"
+            />
+            {translationData?.topic && (() => {
+              const topicColor = getTopicColor(translationData.topic)
+              const displayTopic = normalizeTopic(translationData.topic)
+              return (
+                <span
+                  className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                    typeof topicColor.bg === 'string' && topicColor.bg.startsWith('#')
+                      ? `${topicColor.text} ${topicColor.hover}`
+                      : `${topicColor.bg} ${topicColor.text} ${topicColor.hover}`
+                  }`}
+                  style={
+                    typeof topicColor.bg === 'string' && topicColor.bg.startsWith('#')
+                      ? { backgroundColor: topicColor.bg }
+                      : undefined
+                  }
+                >
+                  {displayTopic}
+                </span>
+              )
+            })()}
+          </div>
         </div>
         <div className="flex gap-3 ml-4">
           <button
@@ -106,28 +231,13 @@ export default function TranslationView({
             {saved ? '내 학습에 저장됨' : '내 학습에 저장'}
           </button>
           <button
-            onClick={async () => {
-              if (!translationData) {
-                setShowPdfWarningToast(true)
-                return
-              }
-              if (!saved) {
-                setShowPdfWarningToast(true)
-                return
-              }
-              try {
-                await generatePDFStep2(title || '제목 없음', translationData)
-              } catch (error) {
-                console.error('PDF 생성 실패:', error)
-                setShowPdfWarningToast(true)
-              }
-            }}
+            onClick={handlePdfSave}
+            disabled={!saved}
             className={`px-4 py-2 rounded-lg ${
               saved
                 ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
             }`}
-            disabled={!saved}
           >
             PDF 저장하기
           </button>
@@ -164,17 +274,6 @@ export default function TranslationView({
             </div>
           </div>
         ))}
-      </div>
-
-      {/* PDF 저장 경고 토스트 */}
-      <div
-        className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${
-          showPdfWarningToast ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
-        }`}
-      >
-        <div className="bg-gray-900 text-white px-6 py-3 rounded-full shadow-lg text-sm">
-          먼저 내 학습에 저장을 완료해 주세요.
-        </div>
       </div>
     </div>
   )

@@ -15,6 +15,7 @@ class Paragraph(BaseModel):
 class TranslationResponse(BaseModel):
     paragraphs: List[Paragraph]
     words: List[Dict[str, str]]
+    topic: Optional[str] = None
 
 class SaveStudyRequest(BaseModel):
     title: str
@@ -23,6 +24,7 @@ class SaveStudyRequest(BaseModel):
     paragraphs: List[Paragraph]
     current_step: int  # 1: 업로드, 2: 번역하기, 3: 단어 정리
     words: Optional[List[Dict[str, str]]] = None
+    topic: Optional[str] = None
 
 class StudyResponse(BaseModel):
     id: int
@@ -31,6 +33,7 @@ class StudyResponse(BaseModel):
     word_count: int
     current_step: int
     created_at: str
+    topic: Optional[str] = None
 
 class WordResponse(BaseModel):
     id: int

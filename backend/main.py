@@ -13,6 +13,7 @@ from services.translation_service import TranslationService
 from services.storage_service import StorageService
 from services.vocabulary_service import VocabularyService
 from services.dictionary_service import DictionaryService
+from services.topic_classification_service import TopicClassificationService
 from models.schemas import (
     TranslationRequest,
     TranslationResponse,
@@ -96,14 +97,7 @@ translation_service = TranslationService()
 storage_service = StorageService()
 vocabulary_service = VocabularyService()
 dictionary_service = DictionaryService(translation_service=translation_service)
-
-# 서버 시작 시 데이터베이스 초기화
-@app.on_event("startup")
-async def startup_event():
-    """서버 시작 시 실행"""
-    print("Initializing database...")
-    await storage_service.init_db()
-    print("Database initialized successfully!")
+topic_classification_service = TopicClassificationService()
 
 @app.get("/")
 async def root():
@@ -151,16 +145,22 @@ async def upload_file(file: UploadFile = File(...)):
 
 @app.post("/api/translate", response_model=TranslationResponse)
 async def translate_text(request: TranslationRequest):
+<<<<<<< HEAD
     """Translate English text to Korean"""
+=======
+    """영어 텍스트를 한국어로 번역 (문단 구분 포함)"""
+>>>>>>> 13a79e5 (주제 분류 & 링기의 배달 페이지 제작)
     try:
-        # 텍스트를 문단 -> 문장 단위로 분리
-        paragraphs = translation_service.split_into_paragraphs(request.text)
-        if not paragraphs and request.text.strip():
-            paragraphs = [request.text.strip()]
+        # 1. 텍스트를 문단 단위로 분리
+        paragraphs_text = translation_service.split_into_paragraphs(request.text)
         
-        translated_paragraphs = []
-        for paragraph in paragraphs:
-            sentences = translation_service.split_into_sentences(paragraph)
+        # 2. 각 문단을 처리
+        paragraphs = []
+        for para_text in paragraphs_text:
+            # 문단 내 문장들을 분리
+            sentences = translation_service.split_into_sentences(para_text)
+            
+            # 각 문장을 번역
             translated_pairs = []
             for sentence in sentences:
                 if sentence.strip():
@@ -169,15 +169,23 @@ async def translate_text(request: TranslationRequest):
                         "english": sentence.strip(),
                         "korean": korean
                     })
+            
+            # 문장이 있는 문단만 추가
             if translated_pairs:
-                translated_paragraphs.append({"sentences": translated_pairs})
+                paragraphs.append({
+                    "sentences": translated_pairs
+                })
         
         # 단어 추출
         words = vocabulary_service.extract_words(request.text)
         
+        # 주제 분류
+        topic = topic_classification_service.classify(request.text)
+        
         return TranslationResponse(
-            paragraphs=translated_paragraphs,
-            words=words
+            paragraphs=paragraphs,
+            words=words,
+            topic=topic
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -213,7 +221,8 @@ async def save_study(request: SaveStudyRequest):
             korean_text=request.korean_text,
             paragraphs=paragraphs_dict,
             current_step=request.current_step,
-            words=request.words
+            words=request.words,
+            topic=request.topic
         )
         
         print(f"Study saved with ID: {study_id}")

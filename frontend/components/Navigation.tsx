@@ -20,6 +20,7 @@ export default function Navigation() {
   const navItems = [
     { href: '/learn', label: '학습하기' },
     { href: '/vocabulary', label: '단어장' },
+    { href: '/delivery', label: '링기의 배달' },
     { href: '/about', label: 'About' },
     { href: '/mypage', label: '마이페이지' },
   ]
@@ -67,6 +68,3 @@ export default function Navigation() {
     </nav>
   )
 }
-
-
-

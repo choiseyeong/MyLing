@@ -4,11 +4,13 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiClient, Study } from '@/lib/api'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default function MyPage() {
   const router = useRouter()
   const [studies, setStudies] = useState<Study[]>([])
   const [sortBy, setSortBy] = useState<'title' | 'recent'>('recent')
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(null)
 
   useEffect(() => {
     loadStudies()
@@ -23,16 +25,69 @@ export default function MyPage() {
     }
   }
 
+  const [deleteModal, setDeleteModal] = useState<{ studyId: number; title: string } | null>(null)
+
   const handleDelete = async (studyId: number, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (confirm('정말 삭제하시겠습니까?')) {
-      try {
-        await apiClient.deleteStudy(studyId)
-        await loadStudies()
-      } catch (error) {
-        console.error('Failed to delete study:', error)
-        alert('삭제에 실패했습니다.')
-      }
+    const study = studies.find(s => s.id === studyId)
+    if (study) {
+      setDeleteModal({ studyId, title: study.title })
+    }
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteModal) return
+    try {
+      await apiClient.deleteStudy(deleteModal.studyId)
+      await loadStudies()
+      setDeleteModal(null)
+    } catch (error) {
+      console.error('Failed to delete study:', error)
+      alert('삭제에 실패했습니다.')
+    }
+  }
+
+  const handleTopicClick = (topic: string | undefined, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (topic && topic !== '기타') {
+      setSelectedTopic(topic)
+    }
+  }
+
+  // 주제 텍스트 통일
+  const normalizeTopic = (topic: string | undefined): string => {
+    if (!topic) return ''
+    switch (topic) {
+      case '인문':
+        return '인문·사회'
+      case '자연과학':
+        return '자연과학'
+      case '공학·기술':
+        return '공학·기술'
+      case '예술·문화':
+        return '예술·문화'
+      default:
+        return topic
+    }
+  }
+
+  const getTopicColor = (topic: string | undefined) => {
+    if (!topic) return { bg: 'bg-gray-100', text: 'text-gray-600', hover: 'hover:bg-gray-200' }
+    
+    switch (topic) {
+      case '인문':
+      case '인문·사회':
+        return { bg: '#3B82F6', text: 'text-white', hover: 'hover:opacity-90' } // 파란계열
+      case '자연과학':
+        return { bg: '#10B981', text: 'text-white', hover: 'hover:opacity-90' } // 초록
+      case '공학·기술':
+        return { bg: '#F59E0B', text: 'text-white', hover: 'hover:opacity-90' } // 노랑~주황
+      case '예술·문화':
+        return { bg: '#EC4899', text: 'text-white', hover: 'hover:opacity-90' } // 분홍
+      case '기타':
+        return { bg: 'bg-gray-100', text: 'text-gray-600', hover: 'hover:bg-gray-200' }
+      default:
+        return { bg: 'bg-gray-100', text: 'text-gray-600', hover: 'hover:bg-gray-200' }
     }
   }
 
@@ -123,7 +178,42 @@ export default function MyPage() {
               <div className="flex items-start gap-4 mb-4">
                 <div className="text-2xl">📄</div>
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold mb-2">{study.title}</h3>
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-xl font-bold">{study.title}</h3>
+                    {study.topic && (() => {
+                      const topicColor = getTopicColor(study.topic)
+                      const isClickable = study.topic !== '기타'
+                      return (
+                        <div className={`relative ${isClickable ? 'group' : ''}`}>
+                          <button
+                            onClick={(e) => handleTopicClick(study.topic, e)}
+                            className={`px-3 py-1 rounded-full text-sm font-semibold transition-colors ${
+                              typeof topicColor.bg === 'string' && topicColor.bg.startsWith('#')
+                                ? `${topicColor.text} ${topicColor.hover}`
+                                : `${topicColor.bg} ${topicColor.text} ${topicColor.hover}`
+                            }`}
+                            style={
+                              typeof topicColor.bg === 'string' && topicColor.bg.startsWith('#')
+                                ? { backgroundColor: topicColor.bg }
+                                : undefined
+                            }
+                          >
+                            {normalizeTopic(study.topic)}
+                          </button>
+                          {isClickable && (
+                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                              <div className="bg-gray-800 text-white text-xs px-3 py-1 rounded-lg whitespace-nowrap relative">
+                                클릭!
+                                <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
+                                  <div className="w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
+                  </div>
                   <p className="text-sm text-gray-600 mb-1">
                     마지막 학습일: {study.last_studied_date}
                   </p>
@@ -150,6 +240,81 @@ export default function MyPage() {
           ))}
         </div>
       </div>
+
+      {/* 주제 클릭 모달 */}
+      {selectedTopic && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md mx-4">
+            <div className="text-center">
+              <h3 className="text-xl font-bold text-gray-800 mb-4">
+                띵동!
+              </h3>
+              <div className="flex justify-center mb-4">
+                <Image
+                  src="/ghost_8.png"
+                  alt="링기"
+                  width={80}
+                  height={80}
+                  className="object-contain"
+                />
+              </div>
+              <p className="text-base text-gray-800 mb-4">
+                이 주제와 관련된 흥미로운<br/>
+                논문을 링기가 들고왔어요!
+              </p>
+              <div className="flex gap-3 justify-center mt-6">
+                <button
+                  onClick={() => setSelectedTopic(null)}
+                  className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={() => {
+                    router.push(`/delivery?topic=${selectedTopic}`)
+                  }}
+                  className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
+                >
+                  이동하기
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 삭제 확인 모달 */}
+      {deleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md mx-4">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-3xl">🗑️</span>
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">
+                정말 삭제하시겠습니까?
+              </h3>
+              <p className="text-gray-600 mb-6">
+                "{deleteModal.title}" 학습 기록이 삭제됩니다.
+              </p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={() => setDeleteModal(null)}
+                  className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
+                >
+                  삭제하기
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

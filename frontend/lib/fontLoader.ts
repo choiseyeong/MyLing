@@ -1,58 +1,40 @@
-import jsPDF from 'jspdf'
+import { jsPDF } from 'jspdf'
 
-// 맑은고딕 폰트 로더
-// 폰트 파일은 public/fonts/malgun.ttf에 위치해야 합니다.
-// 또는 base64로 인코딩된 폰트 데이터를 직접 사용할 수 있습니다.
-
-export async function loadMalgunFont(): Promise<string | null> {
+/**
+ * Malgun Gothic 폰트를 로드하고 jsPDF에 등록합니다.
+ * @param doc jsPDF 인스턴스
+ */
+export async function loadMalgunFont(): Promise<string> {
   try {
-    // 폰트 파일을 fetch로 로드하고 base64로 변환
-    const response = await fetch('/fonts/malgun.ttf')
+    // 대소문자 구분 없이 시도
+    let response = await fetch('/fonts/malgun.ttf')
     if (!response.ok) {
-      console.warn('맑은고딕 폰트 파일을 찾을 수 없습니다. /fonts/malgun.ttf 경로를 확인하세요.')
-      return null
+      response = await fetch('/fonts/MALGUN.TTF')
     }
-    
-    const blob = await response.blob()
-    return new Promise((resolve) => {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        const base64 = reader.result as string
-        // data:font/truetype;base64, 부분 제거
-        const base64Data = base64.split(',')[1]
-        resolve(base64Data)
-      }
-      reader.onerror = () => {
-        console.error('폰트 파일 읽기 실패')
-        resolve(null)
-      }
-      reader.readAsDataURL(blob)
-    })
+    if (!response.ok) {
+      throw new Error('Failed to load font file')
+    }
+    const arrayBuffer = await response.arrayBuffer()
+    const uint8Array = new Uint8Array(arrayBuffer)
+    const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('')
+    const base64 = btoa(binaryString)
+    return base64
   } catch (error) {
-    console.error('폰트 로드 실패:', error)
-    return null
+    console.error('Error loading Malgun font:', error)
+    throw error
   }
 }
 
-// 폰트를 jsPDF에 등록
-export async function registerMalgunFont(doc: jsPDF): Promise<boolean> {
-  try {
-    const fontData = await loadMalgunFont()
-    if (!fontData) {
-      console.warn('맑은고딕 폰트를 사용할 수 없습니다. Helvetica 폰트를 사용합니다.')
-      return false
-    }
-
-    // VFS에 폰트 파일 추가
-    doc.addFileToVFS('malgun.ttf', fontData)
-    // 폰트 등록
-    doc.addFont('malgun.ttf', 'malgun', 'normal')
-    doc.addFont('malgun.ttf', 'malgun', 'bold')
-    
-    return true
-  } catch (error) {
-    console.error('폰트 등록 실패:', error)
-    return false
-  }
+/**
+ * Malgun Gothic 폰트를 jsPDF에 등록합니다.
+ * @param doc jsPDF 인스턴스
+ * @param base64Font Base64로 인코딩된 폰트 데이터
+ */
+export function registerMalgunFont(doc: jsPDF, base64Font: string): void {
+  // jsPDF의 VFS에 폰트 추가
+  ;(doc as any).addFileToVFS('malgun.ttf', base64Font)
+  ;(doc as any).addFont('malgun.ttf', 'MalgunGothic', 'normal')
+  // bold 스타일도 같은 폰트로 등록 (한글 깨짐 방지)
+  ;(doc as any).addFont('malgun.ttf', 'MalgunGothic', 'bold')
 }
 

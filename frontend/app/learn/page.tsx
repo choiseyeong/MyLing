@@ -14,10 +14,9 @@ import { apiClient } from '@/lib/api'
 export default function LearnPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  // studyId가 있으면 loadStudy에서 step을 설정하므로 초기값은 null
-  // studyId가 없으면 새 학습이므로 step 1
-  const studyId = searchParams?.get('studyId')
-  const [step, setStep] = useState(studyId ? null : 1)
+  // 초기 step은 URL 파라미터에서 가져오거나, 없으면 1로 설정
+  const initialStep = searchParams?.get('step') ? parseInt(searchParams.get('step')!) : null
+  const [step, setStep] = useState(initialStep || 1)
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [extractedText, setExtractedText] = useState('')
   const [translationData, setTranslationData] = useState<any>(null)
@@ -30,6 +29,7 @@ export default function LearnPage() {
   const [showWarningToast, setShowWarningToast] = useState(false)
   const [showTitleWarningToast, setShowTitleWarningToast] = useState(false)
   const [showSuccessToast, setShowSuccessToast] = useState(false)
+  const [showPdfWarningToast, setShowPdfWarningToast] = useState(false)
   useEffect(() => {
     if (!showTitleWarningToast) return
     const timer = setTimeout(() => setShowTitleWarningToast(false), 2500)
@@ -41,6 +41,12 @@ export default function LearnPage() {
     const timer = setTimeout(() => setShowSuccessToast(false), 2500)
     return () => clearTimeout(timer)
   }, [showSuccessToast])
+
+  useEffect(() => {
+    if (!showPdfWarningToast) return
+    const timer = setTimeout(() => setShowPdfWarningToast(false), 2500)
+    return () => clearTimeout(timer)
+  }, [showPdfWarningToast])
 
 
   // URL 파라미터에서 studyId를 받아 기존 학습 불러오기
@@ -64,15 +70,6 @@ export default function LearnPage() {
     }
   }, [searchParams])
 
-  // step 3일 때 translationData가 없으면 step 2로 자동 리다이렉트
-  // (step 2에서는 translationData가 없어도 번역 시작 화면이 표시되므로 괜찮음)
-  useEffect(() => {
-    if (step === 3 && !translationData && !loading && savedStudyId) {
-      console.log('⚠️ Step 3 requires translationData but it is missing. Redirecting to step 2.')
-      router.push(`/learn?studyId=${savedStudyId}&step=2`)
-    }
-  }, [step, translationData, loading, savedStudyId, router])
-
   const loadStudy = async (studyId: number, urlStep: number | null = null) => {
     setLoading(true)
     try {
@@ -82,49 +79,22 @@ export default function LearnPage() {
         setSavedStudyId(study.id)
         
         // paragraphs를 translationData 형식으로 변환
-        // 백엔드에서 이미 파싱된 배열을 반환하므로, 추가 파싱은 최소화
         let paragraphs = study.paragraphs || []
         
-        // paragraphs가 문자열이면 JSON 파싱 시도 (혹시 모를 경우 대비)
+        // paragraphs가 문자열이면 JSON 파싱 시도
         if (typeof paragraphs === 'string') {
           try {
-            const parsed = JSON.parse(paragraphs)
-            paragraphs = parsed
+            paragraphs = JSON.parse(paragraphs)
           } catch (e) {
-            console.error('Failed to parse paragraphs as JSON:', e, paragraphs)
+            console.error('Failed to parse paragraphs as JSON:', e)
             paragraphs = []
           }
         }
         
-        // paragraphs가 배열이 아니면 처리
+        // paragraphs가 배열이 아니면 빈 배열로 설정
         if (!Array.isArray(paragraphs)) {
-          console.warn('Paragraphs is not an array:', paragraphs, typeof paragraphs)
-          // 만약 객체이고 paragraphs 속성이 있으면 그것을 사용
-          if (paragraphs && typeof paragraphs === 'object') {
-            if ('paragraphs' in paragraphs && Array.isArray(paragraphs.paragraphs)) {
-              paragraphs = paragraphs.paragraphs
-            } else if (Array.isArray(paragraphs)) {
-              // 이미 배열인데 타입 체크가 잘못된 경우
-              paragraphs = paragraphs
-            } else {
-              console.error('Paragraphs is not in expected format:', paragraphs)
-              paragraphs = []
-            }
-          } else {
-            paragraphs = []
-          }
-        }
-        
-        // 최종 검증: paragraphs가 유효한 구조인지 확인
-        if (Array.isArray(paragraphs) && paragraphs.length > 0) {
-          // 각 paragraph가 sentences 속성을 가져야 함
-          const validParagraphs = paragraphs.filter((p: any) => {
-            return p && typeof p === 'object' && Array.isArray(p.sentences) && p.sentences.length > 0
-          })
-          if (validParagraphs.length !== paragraphs.length) {
-            console.warn(`Filtered ${paragraphs.length - validParagraphs.length} invalid paragraphs`)
-          }
-          paragraphs = validParagraphs
+          console.warn('Paragraphs is not an array:', paragraphs)
+          paragraphs = []
         }
         
         console.log('Loading study data:', {
@@ -154,103 +124,47 @@ export default function LearnPage() {
         
         // translationData 설정
         // paragraphs가 있으면 반드시 translationData 설정
-        let finalTranslationData: any = null
-        let hasTranslationData = false
-        
         if (paragraphs.length > 0) {
-          finalTranslationData = {
+          setTranslationData({
             paragraphs: paragraphs,
             words: []
-          }
-          hasTranslationData = true
-          console.log('✅ TranslationData set successfully with', paragraphs.length, 'paragraphs')
-        } else if (study.english_text && study.korean_text) {
-          // paragraphs가 없지만 english_text와 korean_text가 있으면 재구성 시도
-          console.warn('⚠️ No paragraphs but has english/korean text. Attempting to reconstruct...')
-          try {
-            // 간단한 재구성: 전체 텍스트를 하나의 paragraph로 만들기
-            // 문장 단위로 분리 시도
-            const englishSentences = study.english_text.split(/[.!?]+\s+/).filter(s => s.trim().length > 0)
-            const koreanSentences = study.korean_text.split(/[.!?。！？]+\s+/).filter(s => s.trim().length > 0)
-            
-            // 최소한의 길이로 맞추기
-            const minLength = Math.min(englishSentences.length, koreanSentences.length)
-            const reconstructedParagraphs = [{
-              sentences: Array.from({ length: minLength }, (_, i) => ({
-                english: englishSentences[i]?.trim() || '',
-                korean: koreanSentences[i]?.trim() || ''
-              })).filter(s => s.english && s.korean)
-            }]
-            
-            if (reconstructedParagraphs[0].sentences.length > 0) {
-              finalTranslationData = {
-                paragraphs: reconstructedParagraphs,
-                words: []
-              }
-              hasTranslationData = true
-              console.log('✅ TranslationData reconstructed from english/korean text with', reconstructedParagraphs[0].sentences.length, 'sentences')
-            } else {
-              console.error('❌ Failed to reconstruct paragraphs from text')
-            }
-          } catch (e) {
-            console.error('❌ Error reconstructing paragraphs:', e)
-          }
-        }
-        
-        // translationData 설정 (재구성된 경우도 포함)
-        if (finalTranslationData) {
-          setTranslationData(finalTranslationData)
-        } else {
-          setTranslationData(null)
-          console.error('❌ No paragraphs found!', {
-            study_id: study.id,
-            current_step: study.current_step,
-            has_english_text: !!study.english_text,
-            has_korean_text: !!study.korean_text,
-            raw_paragraphs: study.paragraphs,
-            paragraphs_type: typeof study.paragraphs,
-            paragraphs_length: Array.isArray(study.paragraphs) ? study.paragraphs.length : 'N/A'
           })
+          console.log('✅ TranslationData set successfully with', paragraphs.length, 'paragraphs')
+        } else {
+          // paragraphs가 없으면 null로 설정
+          setTranslationData(null)
+          console.warn('⚠️ No paragraphs found, translationData set to null')
         }
         
         // step 설정: URL 파라미터의 step을 우선 사용, 없으면 current_step 사용
-        // step1에서 중단하는 경우는 없으므로, step2나 step3에서만 중단 가능
-        // 중요한 점: URL step 파라미터를 최우선으로 존중
+        // paragraphs가 없으면 step 1로, 있으면 current_step 사용
         let targetStep: number
         
-        // URL에 step 파라미터가 있고 유효하면 우선 사용 (2, 3만 허용, step1은 새 학습이므로)
-        if (urlStep && (urlStep === 2 || urlStep === 3)) {
-          // URL step 파라미터를 최우선으로 존중
-          // translationData가 없어도 URL step을 따라감 (나중에 useEffect에서 처리)
-          targetStep = urlStep
-          if (hasTranslationData) {
-            console.log('✅ Using URL step parameter:', urlStep, 'with translationData')
-          } else {
-            console.warn('⚠️ URL step', urlStep, 'specified but translationData is missing. Will attempt to load or redirect.')
-          }
+        if (paragraphs.length === 0) {
+          // paragraphs가 없으면 step 1로 강제 설정
+          targetStep = 1
         } else {
-          // URL step이 없으면 current_step 사용
-          // current_step이 2 또는 3이면 그대로 사용
-          if (study.current_step === 2 || study.current_step === 3) {
-            targetStep = study.current_step
-            if (hasTranslationData) {
-              console.log('✅ Using DB current_step:', study.current_step, 'with translationData')
-            } else {
-              console.warn('⚠️ DB current_step', study.current_step, 'but translationData is missing. Will attempt to load or redirect.')
-            }
-          } else if (hasTranslationData) {
-            // paragraphs가 있으면 번역이 완료된 상태이므로 step 2로 설정
-            targetStep = 2
-            console.log('✅ Paragraphs exist, defaulting to step 2')
+          // URL에 step 파라미터가 있고 유효하면 우선 사용 (2 또는 3만 허용)
+          if (urlStep && (urlStep === 2 || urlStep === 3)) {
+            targetStep = urlStep
+            console.log('✅ Using URL step parameter:', urlStep)
           } else {
-            // paragraphs가 없고 current_step도 유효하지 않으면 step 1 (새 학습)
-            targetStep = 1
-            console.log('⚠️ No paragraphs and invalid current_step, defaulting to step 1')
+            // paragraphs가 있으면 current_step 사용
+            // current_step이 2 또는 3이면 그대로 사용
+            // current_step이 1이거나 없으면 2로 설정 (번역이 완료된 상태)
+            if (study.current_step === 2 || study.current_step === 3) {
+              targetStep = study.current_step
+              console.log('✅ Using DB current_step:', study.current_step)
+            } else {
+              // current_step이 1이거나 없거나 다른 값이면 2로 설정
+              targetStep = 2
+              console.log('⚠️ Using default step 2 (current_step is invalid)')
+            }
           }
         }
         
-        // step 설정 (URL step 파라미터를 최우선으로 존중)
-        console.log('🎯 Final target step:', targetStep, 'with translationData:', hasTranslationData)
+        // step 설정 (URL 파라미터가 있으면 우선 사용, 없으면 DB의 current_step 사용)
+        console.log('🎯 Final target step:', targetStep)
         setStep(targetStep)
         
         console.log('Loaded study:', {
@@ -326,6 +240,7 @@ export default function LearnPage() {
         paragraphs: translationData.paragraphs,
         current_step: 2, // 저장 시점에는 step 2 (번역하기 단계)
         words: [], // 단어는 사용자가 직접 더블클릭하여 추가하도록 빈 배열로 전달
+        topic: translationData.topic, // 주제 분류 결과 포함
       })
 
       setSavedStudyId(result.study_id)
@@ -354,7 +269,7 @@ export default function LearnPage() {
     }
   }
 
-  if (loading || step === null) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-primary"></div>
@@ -418,6 +333,15 @@ export default function LearnPage() {
           제목을 입력해 주세요.
         </div>
       </div>
+      <div
+        className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${
+          showPdfWarningToast ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
+        }`}
+      >
+        <div className="bg-gray-900 text-white px-6 py-3 rounded-full shadow-lg text-sm">
+          먼저 내 학습에 저장해 주세요
+        </div>
+      </div>
       
       {/* 경고 토스트 메시지 (화면 가운데) */}
       <div
@@ -470,24 +394,19 @@ export default function LearnPage() {
             onSave={handleSaveToMyLearning}
             onGoToWordOrganization={handleGoToWordOrganization}
             saved={!!savedStudyId}
+            onShowPdfWarning={() => setShowPdfWarningToast(true)}
+            uploadedFiles={uploadedFiles}
           />
         )}
 
-        {step === 3 && (
-          translationData ? (
-            <WordOrganization
-              title={title}
-              translationData={translationData}
-              studyId={savedStudyId}
-            />
-          ) : (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-primary mx-auto mb-4"></div>
-              <p className="text-lg text-gray-600 mb-4">
-                번역 데이터를 불러오는 중...
-              </p>
-            </div>
-          )
+        {step === 3 && translationData && (
+          <WordOrganization
+            title={title}
+            translationData={translationData}
+            studyId={savedStudyId}
+            saved={!!savedStudyId}
+            onShowPdfWarning={() => setShowPdfWarningToast(true)}
+          />
         )}
       </div>
     </div>
