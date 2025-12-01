@@ -223,13 +223,23 @@ class TopicClassificationService:
         if not text or not text.strip():
             return '기타'
         
+        # 텍스트가 너무 짧으면 (20자 이하 또는 단어가 3개 이하) '기타' 반환
+        text_stripped = text.strip()
+        word_count = len(text_stripped.split())
+        if len(text_stripped) <= 20 or word_count <= 3:
+            return '기타'
+        
         # 1. 키워드 기반 점수 계산
         keyword_scores = self._calculate_keyword_scores(text)
         
         # 2. 모델 기반 점수 계산 (선택적)
         model_scores = self._calculate_model_scores(text)
         
-        # 3. 하이브리드 점수 계산
+        # 3. 키워드 점수가 모두 0인지 확인
+        max_keyword_score = max(keyword_scores.values()) if keyword_scores else 0
+        has_keywords = max_keyword_score > 0
+        
+        # 4. 하이브리드 점수 계산
         if model_scores:
             # 키워드와 모델 점수 결합
             final_scores = {}
@@ -244,14 +254,19 @@ class TopicClassificationService:
             # 모델이 없으면 키워드만 사용
             final_scores = keyword_scores
         
-        # 4. 최고 점수 찾기
+        # 5. 최고 점수 찾기
         max_score = max(final_scores.values()) if final_scores else 0
         
-        # 점수가 너무 낮으면 '기타' 반환 (임계값: 0.1)
-        if max_score < 0.1:
-            return '기타'
+        # 6. 키워드가 없으면 더 엄격한 임계값 적용 (0.5 이상)
+        if not has_keywords:
+            if max_score < 0.5:
+                return '기타'
+        else:
+            # 키워드가 있으면 기존 임계값 사용 (0.1)
+            if max_score < 0.1:
+                return '기타'
         
-        # 5. 최고 점수를 가진 주제 찾기
+        # 7. 최고 점수를 가진 주제 찾기
         best_topic = max(final_scores.items(), key=lambda x: x[1])[0]
         
         # 한글 주제명으로 변환

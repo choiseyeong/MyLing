@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import ProgressBar from '@/components/ProgressBar'
 import FileUpload from '@/components/FileUpload'
@@ -12,11 +12,12 @@ import Toast from '@/components/Toast'
 import { apiClient } from '@/lib/api'
 
 export default function LearnPage() {
-  const router = useRouter()
   const searchParams = useSearchParams()
-  // 초기 step은 URL 파라미터에서 가져오거나, 없으면 1로 설정
-  const initialStep = searchParams?.get('step') ? parseInt(searchParams.get('step')!) : null
-  const [step, setStep] = useState(initialStep || 1)
+  // 초기 step은 URL 파라미터에서 가져오거나, 없으면 1로 설정 (안전하게 숫자로 변환)
+  const stepParamRaw = searchParams?.get('step')
+  const stepParam = Number(stepParamRaw)
+  const safeInitialStep = [1, 2, 3].includes(stepParam) ? stepParam : 1
+  const [step, setStep] = useState(safeInitialStep)
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [extractedText, setExtractedText] = useState('')
   const [translationData, setTranslationData] = useState<any>(null)
@@ -55,8 +56,9 @@ export default function LearnPage() {
     const stepParam = searchParams?.get('step')
     
     if (studyId) {
-      // step 파라미터를 loadStudy에 전달 (loadStudy에서 step 설정)
-      const stepValue = stepParam ? parseInt(stepParam) : null
+      // step 파라미터를 loadStudy에 전달 (loadStudy에서 step 설정, 안전하게 숫자로 변환)
+      const sanitizedStep = Number(stepParam)
+      const stepValue = [1, 2, 3].includes(sanitizedStep) ? sanitizedStep : null
       loadStudy(parseInt(studyId), stepValue)
     } else {
       // studyId가 없으면 step을 1로 초기화 (새로운 학습 시작)
@@ -93,21 +95,18 @@ export default function LearnPage() {
         
         // paragraphs가 배열이 아니면 빈 배열로 설정
         if (!Array.isArray(paragraphs)) {
-          console.warn('Paragraphs is not an array:', paragraphs)
           paragraphs = []
         }
         
-        console.log('Loading study data:', {
-          paragraphs_type: typeof paragraphs,
-          paragraphs_is_array: Array.isArray(paragraphs),
-          paragraphs_length: paragraphs.length,
-          paragraphs_sample: paragraphs.length > 0 ? paragraphs[0] : null,
-          english_text_exists: !!study.english_text,
-          english_text_length: study.english_text ? study.english_text.length : 0,
-          full_study: study,
-          url_step: urlStep,
-          current_step: study.current_step
-        })
+        // paragraphs가 비어있으면 경고하고 step=1로 설정
+        if (paragraphs.length === 0) {
+          alert('저장된 번역 데이터가 손상되어 다시 업로드해야 합니다.')
+          setStep(1)
+          setTranslationData(null)
+          setExtractedText('')
+          setLoading(false)
+          return
+        }
         
         // extractedText 설정 (english_text가 있으면 사용, 없으면 paragraphs에서 추출)
         if (study.english_text) {
@@ -122,60 +121,28 @@ export default function LearnPage() {
           }
         }
         
-        // translationData 설정
-        // paragraphs가 있으면 반드시 translationData 설정
-        if (paragraphs.length > 0) {
-          setTranslationData({
-            paragraphs: paragraphs,
-            words: []
-          })
-          console.log('✅ TranslationData set successfully with', paragraphs.length, 'paragraphs')
-        } else {
-          // paragraphs가 없으면 null로 설정
-          setTranslationData(null)
-          console.warn('⚠️ No paragraphs found, translationData set to null')
-        }
+        // translationData 설정 (paragraphs가 있을 때만 실행됨)
+        setTranslationData({
+          paragraphs: paragraphs,
+          words: []
+        })
         
-        // step 설정: URL 파라미터의 step을 우선 사용, 없으면 current_step 사용
-        // paragraphs가 없으면 step 1로, 있으면 current_step 사용
+        // === 최종 step 결정 (URL > DB > 기본값 1) ===
         let targetStep: number
         
-        if (paragraphs.length === 0) {
-          // paragraphs가 없으면 step 1로 강제 설정
-          targetStep = 1
+        // urlStep을 안전하게 숫자로 변환 및 검증
+        const sanitizedUrlStep = Number(urlStep)
+        const validUrlStep = [1, 2, 3].includes(sanitizedUrlStep) ? sanitizedUrlStep : null
+        
+        if (validUrlStep !== null) {
+          targetStep = validUrlStep
+        } else if (study.current_step && [1, 2, 3].includes(study.current_step)) {
+          targetStep = study.current_step
         } else {
-          // URL에 step 파라미터가 있고 유효하면 우선 사용 (2 또는 3만 허용)
-          if (urlStep && (urlStep === 2 || urlStep === 3)) {
-            targetStep = urlStep
-            console.log('✅ Using URL step parameter:', urlStep)
-          } else {
-            // paragraphs가 있으면 current_step 사용
-            // current_step이 2 또는 3이면 그대로 사용
-            // current_step이 1이거나 없으면 2로 설정 (번역이 완료된 상태)
-            if (study.current_step === 2 || study.current_step === 3) {
-              targetStep = study.current_step
-              console.log('✅ Using DB current_step:', study.current_step)
-            } else {
-              // current_step이 1이거나 없거나 다른 값이면 2로 설정
-              targetStep = 2
-              console.log('⚠️ Using default step 2 (current_step is invalid)')
-            }
-          }
+          targetStep = 1
         }
         
-        // step 설정 (URL 파라미터가 있으면 우선 사용, 없으면 DB의 current_step 사용)
-        console.log('🎯 Final target step:', targetStep)
         setStep(targetStep)
-        
-        console.log('Loaded study:', {
-          title: study.title,
-          current_step: study.current_step,
-          target_step: targetStep,
-          paragraphs_count: paragraphs.length,
-          has_translation_data: paragraphs.length > 0,
-          has_english_text: !!study.english_text,
-          extracted_text_length: study.english_text ? study.english_text.length : 0
-        })
       }
     } catch (error) {
       console.error('Failed to load study:', error)
@@ -409,6 +376,31 @@ export default function LearnPage() {
           />
         )}
       </div>
+
+      {/* step1에서만 ghost_9와 말풍선 표시 */}
+      {step === 1 && !isUploading && (
+        <div className="fixed bottom-8 right-8 z-10">
+          <div className="relative group">
+            <Image
+              src="/ghost_9.png"
+              alt="링기"
+              width={150}
+              height={150}
+              className="animate-float-slow"
+            />
+            {/* 말풍선 표시 */}
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 pointer-events-none">
+              <div className="bg-gray-700 text-white text-sm px-4 py-3 rounded-lg relative shadow-lg text-center min-w-[180px]">
+                번역하고자 하는 지문을<br/>업로드해 주세요!
+                {/* 아래쪽 삼각형 (꼬리) */}
+                <div className="absolute top-full left-1/2 -translate-x-1/2">
+                  <div className="w-0 h-0 border-l-[8px] border-r-[8px] border-t-[10px] border-transparent border-t-gray-700"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

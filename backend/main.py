@@ -24,31 +24,23 @@ from models.schemas import (
 
 # 현재 파일의 디렉토리 기준으로 api.env 파일 경로 설정
 env_path = Path(__file__).parent / "api.env"
-print(f"Looking for env file at: {env_path}")
-print(f"File exists: {env_path.exists()}")
 
 if env_path.exists():
     # api.env 파일을 직접 읽어서 환경 변수 설정
     try:
         with open(env_path, 'r', encoding='utf-8') as f:
             content = f.read()
-            print(f"File content (first 50 chars): {repr(content[:50])}")
-            print(f"File content length: {len(content)}")
             
             if not content:
-                print("WARNING: File is empty!")
                 # 파일을 다시 읽어보기 (바이너리 모드)
                 with open(env_path, 'rb') as fb:
                     binary_content = fb.read()
-                    print(f"Binary content: {binary_content[:50]}")
                     content = binary_content.decode('utf-8')
-                    print(f"Decoded content: {repr(content[:50])}")
             
             # 여러 줄바꿈 문자 처리
             lines = content.replace('\r\n', '\n').replace('\r', '\n').split('\n')
-            print(f"Number of lines: {len(lines)}")
             
-            for i, line in enumerate(lines):
+            for line in lines:
                 line = line.strip()
                 if line and not line.startswith('#') and '=' in line:
                     parts = line.split('=', 1)
@@ -56,29 +48,17 @@ if env_path.exists():
                         key = parts[0].strip()
                         value = parts[1].strip()
                         os.environ[key] = value
-                        print(f"Set environment variable: {key} = {value[:20]}...")
-                        # 즉시 확인
-                        test_key = os.getenv(key)
-                        print(f"  Verification: os.getenv('{key}') = {test_key is not None}")
-                        if test_key:
-                            print(f"  Value: {test_key[:20]}...")
     except Exception as e:
-        print(f"Error reading env file: {e}")
         import traceback
         traceback.print_exc()
 else:
     # api.env가 없으면 기본 .env 파일 로드 시도
-    print("api.env not found, trying load_dotenv()")
     load_dotenv()
 
 # 확인
 api_key = os.getenv('DEEPL_API_KEY')
-print(f"DEEPL_API_KEY after loading: {api_key is not None}")
-if api_key:
-    print(f"DEEPL_API_KEY value: {api_key[:20]}...")
-else:
-    print("ERROR: DEEPL_API_KEY is still None!")
-    print(f"All env vars with DEEPL: {[k for k in os.environ.keys() if 'DEEPL' in k]}")
+if not api_key:
+    print("ERROR: DEEPL_API_KEY is not set!")
 
 app = FastAPI(title="MyLing API", version="1.0.0")
 
@@ -107,8 +87,6 @@ async def root():
 async def upload_file(file: UploadFile = File(...)):
     """Upload file and extract text using OCR"""
     try:
-        print(f"Received file upload: {file.filename}, content_type: {file.content_type}")
-        
         # 파일 저장
         upload_dir = "uploads"
         os.makedirs(upload_dir, exist_ok=True)
@@ -117,17 +95,12 @@ async def upload_file(file: UploadFile = File(...)):
         safe_filename = file.filename.replace("..", "").replace("/", "").replace("\\", "")
         file_path = os.path.join(upload_dir, safe_filename)
         
-        print(f"Saving file to: {file_path}")
         with open(file_path, "wb") as buffer:
             content = await file.read()
             buffer.write(content)
         
-        print(f"File saved, size: {len(content)} bytes")
-        
         # OCR로 텍스트 추출
-        print(f"Extracting text from: {file_path}")
         extracted_text = await ocr_service.extract_text(file_path, file.content_type)
-        print(f"Extracted text length: {len(extracted_text)}")
         
         # 임시 파일 삭제 (선택사항)
         # os.remove(file_path)
@@ -200,10 +173,6 @@ async def save_study(request: SaveStudyRequest):
         if not request.paragraphs or len(request.paragraphs) == 0:
             raise ValueError("번역된 내용이 없습니다.")
         
-        print(f"Received save request: title={request.title}, step={request.current_step}")
-        print(f"Paragraphs count: {len(request.paragraphs) if request.paragraphs else 0}")
-        print(f"Words count: {len(request.words) if request.words else 0}")
-        
         # paragraphs를 dict 리스트로 변환
         paragraphs_dict = []
         for para in request.paragraphs:
@@ -225,13 +194,9 @@ async def save_study(request: SaveStudyRequest):
             topic=request.topic
         )
         
-        print(f"Study saved with ID: {study_id}")
-        
         # 단어 저장
         if request.words:
-            print(f"Saving {len(request.words)} words...")
             await vocabulary_service.save_words(request.words, study_id, dictionary_service)
-            print("Words saved successfully")
         
         return {"success": True, "study_id": study_id}
     except ValueError as e:
@@ -284,7 +249,6 @@ async def delete_study(study_id: int):
     try:
         # 먼저 해당 지문의 모든 단어 삭제
         deleted_count = await vocabulary_service.delete_words_by_study_id(study_id)
-        print(f"Deleted {deleted_count} words for study_id {study_id}")
         
         # 그 다음 지문 삭제
         await storage_service.delete_study(study_id)

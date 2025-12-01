@@ -57,13 +57,12 @@ export default function VocabularyPage() {
 
   const loadWords = async () => {
     try {
-      // 지문 목록용 전체 단어 로드 (지문별 필터일 때도 전체 단어를 가져와서 목록 유지)
-      if (filter === 'by-passage' && allWordsForList.length === 0) {
-        const allData = await apiClient.getVocabulary(undefined)
-        const sortedAllData = applySorting([...allData], sortOrder)
-        setAllWordsForList(sortedAllData)
-      }
+      // 항상 전체 단어를 먼저 로드하여 퍼센트 계산용으로 사용
+      const allData = await apiClient.getVocabulary(undefined)
+      const sortedAllData = applySorting([...allData], sortOrder)
+      setAllWordsForList(sortedAllData)
 
+      // 필터에 따라 표시할 단어 로드
       const data = await apiClient.getVocabulary(
         filter === 'by-passage' ? selectedStudyId || undefined : undefined
       )
@@ -90,6 +89,7 @@ export default function VocabularyPage() {
     const deletedWord = words.find(w => w.id === wordId)
     setWords(prevWords => prevWords.filter(word => word.id !== wordId))
     setAllWords(prevAllWords => prevAllWords.filter(word => word.id !== wordId))
+    setAllWordsForList(prevAllWords => prevAllWords.filter(word => word.id !== wordId))
     
     try {
       await apiClient.deleteWord(wordId)
@@ -100,6 +100,7 @@ export default function VocabularyPage() {
       if (deletedWord) {
         setWords(prevWords => [...prevWords, deletedWord].sort((a, b) => a.id - b.id))
         setAllWords(prevAllWords => [...prevAllWords, deletedWord].sort((a, b) => a.id - b.id))
+        setAllWordsForList(prevAllWords => [...prevAllWords, deletedWord].sort((a, b) => a.id - b.id))
       }
       alert('단어 삭제에 실패했습니다.')
     }
@@ -138,6 +139,11 @@ export default function VocabularyPage() {
         word.id === wordId ? { ...word, known: !currentKnown } : word
       )
     )
+    setAllWordsForList((prevWords) =>
+      prevWords.map((word) =>
+        word.id === wordId ? { ...word, known: !currentKnown } : word
+      )
+    )
 
     // 퍼센트 애니메이션 트리거 (중복 방지)
     if (animationTimer) {
@@ -152,11 +158,19 @@ export default function VocabularyPage() {
 
     try {
       await apiClient.markWord(wordId, !currentKnown)
+      
+      // 전체 단어 목록도 함께 업데이트 (퍼센트 계산용)
+      const allData = await apiClient.getVocabulary(undefined)
+      const sortedAllData = applySorting([...allData], sortOrder)
+      setAllWordsForList(sortedAllData)
+      
+      // 현재 필터에 맞는 단어 목록 업데이트
       const data = await apiClient.getVocabulary(
         filter === 'by-passage' ? selectedStudyId || undefined : undefined
       )
-      setAllWords(data)
-      setWords(showUnknownOnly ? data.filter((word) => !word.known) : data)
+      const sortedData = applySorting([...data], sortOrder)
+      setAllWords(sortedData)
+      setWords(showUnknownOnly ? sortedData.filter((word) => !word.known) : sortedData)
 
       // "모르는 단어만 보기"가 체크되어 있고, 단어를 "알고 있음"으로 표시한 경우 페이딩 시작
       if (showUnknownOnly && !currentKnown) {
@@ -190,6 +204,11 @@ export default function VocabularyPage() {
           word.id === wordId ? { ...word, known: currentKnown } : word
         )
       )
+      setAllWordsForList((prevWords) =>
+        prevWords.map((word) =>
+          word.id === wordId ? { ...word, known: currentKnown } : word
+        )
+      )
     }
   }
 
@@ -200,9 +219,10 @@ export default function VocabularyPage() {
     }
   }, [fadeTimers])
 
-  // 아는 단어 퍼센트 계산
-  const knownWordsCount = allWords.filter((word) => word.known).length
-  const totalWordsCount = allWords.length
+  // 아는 단어 퍼센트 계산 (항상 전체 단어 기준)
+  const wordsForPercentage = allWordsForList.length > 0 ? allWordsForList : allWords
+  const knownWordsCount = wordsForPercentage.filter((word) => word.known).length
+  const totalWordsCount = wordsForPercentage.length
   const knownWordsPercentage =
     totalWordsCount > 0
       ? Math.round((knownWordsCount / totalWordsCount) * 100)

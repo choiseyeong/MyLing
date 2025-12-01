@@ -29,6 +29,9 @@ class SaveStudyRequest(BaseModel):
 class StudyResponse(BaseModel):
     id: int
     title: str
+    english_text: Optional[str] = None
+    korean_text: Optional[str] = None
+    paragraphs: Optional[List[Paragraph]] = None
     last_studied_date: str
     word_count: int
     current_step: int
