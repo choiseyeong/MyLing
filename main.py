@@ -91,9 +91,29 @@ else:
 
 app = FastAPI(title="MyLing API", version="1.0.0")
 
+# CORS 설정 (환경 변수로 관리, 없으면 기본값 사용)
+cors_origins_env = os.getenv('CORS_ALLOWED_ORIGINS', '')
+if cors_origins_env:
+    # 환경 변수가 있으면 쉼표로 분리하여 리스트로 변환
+    allowed_origins = [origin.strip() for origin in cors_origins_env.split(',') if origin.strip()]
+else:
+    # 환경 변수가 없으면 기본값 (개발 환경 + 프로덕션)
+    allowed_origins = [
+        "http://localhost:3000", 
+        "http://localhost:3001", 
+        "http://localhost:3002", 
+        "http://127.0.0.1:3000", 
+        "http://127.0.0.1:3001", 
+        "http://127.0.0.1:3002",
+        "https://my-ling.vercel.app",  # Vercel 프로덕션
+        "https://my-ling-*.vercel.app",  # Vercel 프리뷰 (와일드카드는 작동 안 함, 명시적으로 추가 필요)
+    ]
+
+print(f"CORS allowed origins: {allowed_origins}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://127.0.0.1:3000", "http://127.0.0.1:3001", "http://127.0.0.1:3002"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
