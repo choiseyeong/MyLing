@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -102,7 +103,7 @@ async def root():
 
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...)):
-    """파일 업로드 및 OCR 텍스트 추출"""
+    """Upload file and extract text using OCR"""
     try:
         print(f"Received file upload: {file.filename}, content_type: {file.content_type}")
         
@@ -142,7 +143,7 @@ async def upload_file(file: UploadFile = File(...)):
 
 @app.post("/api/translate", response_model=TranslationResponse)
 async def translate_text(request: TranslationRequest):
-    """영어 텍스트를 한국어로 번역"""
+    """Translate English text to Korean"""
     try:
         # 텍스트를 문장 단위로 분리
         sentences = translation_service.split_into_sentences(request.text)
@@ -171,7 +172,7 @@ async def translate_text(request: TranslationRequest):
 
 @app.post("/api/study/save")
 async def save_study(request: SaveStudyRequest):
-    """학습 내용 저장"""
+    """Save study content"""
     try:
         # 입력 검증
         if not request.title or not request.title.strip():
@@ -228,7 +229,7 @@ async def save_study(request: SaveStudyRequest):
 
 @app.get("/api/study/list", response_model=List[StudyResponse])
 async def get_study_list():
-    """저장된 학습 목록 조회"""
+    """Get list of saved studies"""
     try:
         # vocabulary_service를 전달하여 실제 단어 개수 가져오기
         studies = await storage_service.get_all_studies(vocabulary_service=vocabulary_service)
@@ -238,7 +239,7 @@ async def get_study_list():
 
 @app.get("/api/study/{study_id}", response_model=StudyResponse)
 async def get_study(study_id: int):
-    """특정 학습 내용 조회"""
+    """Get specific study content"""
     try:
         study = await storage_service.get_study(study_id)
         if not study:
@@ -249,7 +250,7 @@ async def get_study(study_id: int):
 
 @app.put("/api/study/{study_id}")
 async def update_study(study_id: int, data: dict):
-    """학습 내용 업데이트 (current_step 등)"""
+    """Update study content (current_step, etc.)"""
     try:
         await storage_service.update_study(study_id, **data)
         return {"success": True}
@@ -258,7 +259,7 @@ async def update_study(study_id: int, data: dict):
 
 @app.delete("/api/study/{study_id}")
 async def delete_study(study_id: int):
-    """학습 내용 삭제 (관련 단어도 함께 삭제)"""
+    """Delete study content (including related words)"""
     try:
         # 먼저 해당 지문의 모든 단어 삭제
         deleted_count = await vocabulary_service.delete_words_by_study_id(study_id)
@@ -275,7 +276,7 @@ async def delete_study(study_id: int):
 
 @app.get("/api/vocabulary", response_model=List[WordResponse])
 async def get_vocabulary(study_id: Optional[int] = None):
-    """단어장 조회 (전체 또는 특정 학습의 단어)"""
+    """Get vocabulary list (all words or words for a specific study)"""
     try:
         words = await vocabulary_service.get_words(study_id)
         return words
@@ -284,7 +285,7 @@ async def get_vocabulary(study_id: Optional[int] = None):
 
 @app.post("/api/vocabulary/add")
 async def add_word(word: str, meaning: str = "", study_id: Optional[int] = None):
-    """단어 추가 (뜻은 자동으로 가져오지 않음 - 사용자가 나중에 '뜻 가져오기' 버튼으로 가져올 수 있음)"""
+    """Add word (meaning is not automatically fetched - user can fetch it later using 'Get meaning' button)"""
     try:
         # 뜻 없이 즉시 저장 (빠른 저장)
         # 뜻은 사용자가 "뜻 가져오기" 버튼을 클릭할 때만 가져옴
@@ -299,7 +300,7 @@ async def add_word(word: str, meaning: str = "", study_id: Optional[int] = None)
 
 @app.post("/api/vocabulary/fetch-meaning")
 async def fetch_word_meaning(word: str):
-    """단어의 뜻을 DictionaryAPI.dev에서 가져오기"""
+    """Fetch word meaning from DictionaryAPI.dev"""
     try:
         meaning = await dictionary_service.get_word_meaning(word)
         if meaning:
@@ -311,7 +312,7 @@ async def fetch_word_meaning(word: str):
 
 @app.post("/api/vocabulary/update-meaning")
 async def update_word_meaning(word_id: int, meaning: str):
-    """단어의 뜻 업데이트"""
+    """Update word meaning"""
     try:
         await vocabulary_service.update_word_meaning(word_id, meaning)
         return {"success": True}
@@ -320,7 +321,7 @@ async def update_word_meaning(word_id: int, meaning: str):
 
 @app.post("/api/vocabulary/mark")
 async def mark_word(word_id: int, known: bool):
-    """단어를 '알고 있음' 또는 '모름'으로 표시"""
+    """Mark word as known or unknown"""
     try:
         await vocabulary_service.mark_word(word_id, known)
         return {"success": True}
@@ -329,7 +330,7 @@ async def mark_word(word_id: int, known: bool):
 
 @app.delete("/api/vocabulary/{word_id}")
 async def delete_word(word_id: int):
-    """단어 삭제"""
+    """Delete word"""
     try:
         await vocabulary_service.delete_word(word_id)
         return {"success": True}
