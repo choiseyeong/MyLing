@@ -2,25 +2,33 @@
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
 from typing import List, Optional
 import uvicorn
 
-from services.ocr_service import OCRService
-from services.translation_service import TranslationService
-from services.storage_service import StorageService
-from services.vocabulary_service import VocabularyService
-from services.dictionary_service import DictionaryService
-from models.schemas import (
-    TranslationRequest,
-    TranslationResponse,
-    SaveStudyRequest,
-    StudyResponse,
-    WordResponse
-)
+# backend 디렉토리를 Python 경로에 추가
+backend_path = Path(__file__).parent / "backend"
+if str(backend_path) not in sys.path:
+    sys.path.insert(0, str(backend_path))
 
-env_path = Path(__file__).parent / "api.env"
+# 타입 체크를 위한 주석 (런타임에는 sys.path 수정으로 해결됨)
+if True:  # 런타임 경로 수정
+    from services.ocr_service import OCRService  # type: ignore
+    from services.translation_service import TranslationService  # type: ignore
+    from services.storage_service import StorageService  # type: ignore
+    from services.vocabulary_service import VocabularyService  # type: ignore
+    from services.dictionary_service import DictionaryService  # type: ignore
+    from models.schemas import (  # type: ignore
+        TranslationRequest,
+        TranslationResponse,
+        SaveStudyRequest,
+        StudyResponse,
+        WordResponse
+    )
+
+env_path = backend_path / "api.env"
 print(f"Looking for env file at: {env_path}")
 print(f"File exists: {env_path.exists()}")
 
@@ -86,6 +94,10 @@ translation_service = TranslationService()
 storage_service = StorageService()
 vocabulary_service = VocabularyService()
 dictionary_service = DictionaryService(translation_service=translation_service)
+ocr_service = OCRService()
+
+# 업로드 디렉토리 설정
+upload_dir = backend_path / "uploads"
 
 async def startup_event():
     print("Initializing database...")
@@ -104,7 +116,7 @@ async def upload_file(file: UploadFile = File(...)):
         os.makedirs(upload_dir, exist_ok=True)
         
         safe_filename = file.filename.replace("..", "").replace("/", "").replace("\\", "")
-        file_path = os.path.join(upload_dir, safe_filename)
+        file_path = str(upload_dir / safe_filename)
         
         print(f"Saving file to: {file_path}")
         with open(file_path, "wb") as buffer:
@@ -172,6 +184,7 @@ async def save_study(request: SaveStudyRequest):
         print(f"Paragraphs count: {len(request.paragraphs) if request.paragraphs else 0}")
         print(f"Words count: {len(request.words) if request.words else 0}")
         
+        paragraphs_dict = []
         for para in request.paragraphs:
             sentences_dict = []
             for sent in para.sentences:
@@ -212,6 +225,7 @@ async def save_study(request: SaveStudyRequest):
 @app.get("/api/study/list", response_model=List[StudyResponse])
 async def get_study_list():
     try:
+        studies = await storage_service.get_all_studies(vocabulary_service=vocabulary_service)
         return studies
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
