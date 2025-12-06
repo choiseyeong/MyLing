@@ -36,15 +36,16 @@
 
 # 3. 제작 과정 (Making Process)
 
-### 9월
+### 🗓 9월
 - 아이디어 및 주요 기능 구상
 
-### 11월
+### 🗓 11월
 - Figma 페이지 디자인 & UI/UX 설계
-    (캐릭터를 활용해 서비스의 느낌과 전반적인 디자인 스타일을 정리했습니다.)
+- (캐릭터를 활용해 서비스의 느낌과 전반적인 디자인 스타일을 정리했습니다.)
+<img width="800" height="951" alt="Image" src="https://github.com/user-attachments/assets/59fa2c5a-2caf-4d7c-985f-502fe079e40a" /><br/>
 - 초기 구현 시작
 
-### 12월
+### 🗓 12월
 - 홈, About 페이지 디자인 구현
 - pdf 저장, 단어장, 문단 구분 기능 등 구현
 - 배포 및 최종 테스트
@@ -52,6 +53,12 @@
 ---
 
 # 4. 데모 (Demo)
+홈의 사용법 설명 화면
+
+파일 업로드
+
+번역 과정
+
 
 ---
 
@@ -129,7 +136,7 @@ DeepL API로 영어를 한국어로 번역합니다. (단, 실제 번역 API는 
 ---
 
 # 6. 기술 스택 (Tech Stack)
-
+<img width="700" height="698" alt="Image" src="https://github.com/user-attachments/assets/507ed12c-34df-46c9-aa72-6d56ac8a6786" /><br/>
 - **Frontend:** Next.js 14, React 18, TypeScript, Tailwind CSS, Axios, jsPDF
 - **Backend:** FastAPI, Python 3.11, Uvicorn, SQLAlchemy, SQLite, aiosqlite
 - **AI/ML:** Transformers (PyTorch), Tesseract OCR, pdfplumber
@@ -208,8 +215,7 @@ MyLing/
     키워드 기반 분류와 Transformer 기반 Zero-shot Classification을 함께 사용했습니다.<br/>
     빠른 처리 속도와 맥락 이해를 모두 반영하기 위한 결정이었습니다.
     
-
----
+==
 
 ### **2. 문제 해결 (Troubleshooting)**
 
@@ -222,7 +228,7 @@ MyLing/
     Vercel 프리뷰 도메인이 변동되는 문제를 정규식 기반 허용 도메인 설정으로 해결했습니다.
     
 
----
+==
 
 ### **3. 성능 및 품질 개선 (Performance Improvements)**
 
@@ -243,7 +249,7 @@ MyLing/
     Free Dictionary API 실패 시 DeepL로 자동 대체하도록 구성해 조회 실패율을 낮췄습니다.
     
 
----
+==
 
 ### **4. 사용자 경험(UX) 개선 (UX Enhancements)**
 
