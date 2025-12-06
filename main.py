@@ -192,9 +192,9 @@ async def save_study(request: SaveStudyRequest):
         
         print(f"Study saved with ID: {study_id}")
         
-            print(f"Saving {len(request.words)} words...")
-            await vocabulary_service.save_words(request.words, study_id, dictionary_service)
-            print("Words saved successfully")
+        print(f"Saving {len(request.words)} words...")
+        await vocabulary_service.save_words(request.words, study_id, dictionary_service)
+        print("Words saved successfully")
         
         return {"success": True, "study_id": study_id}
     except ValueError as e:
