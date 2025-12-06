@@ -20,6 +20,7 @@ if True:  # 런타임 경로 수정
     from services.storage_service import StorageService  # type: ignore
     from services.vocabulary_service import VocabularyService  # type: ignore
     from services.dictionary_service import DictionaryService  # type: ignore
+    from services.topic_classification_service import TopicClassificationService  # type: ignore
     from models.schemas import (  # type: ignore
         TranslationRequest,
         TranslationResponse,
@@ -128,6 +129,7 @@ storage_service = StorageService()
 vocabulary_service = VocabularyService()
 dictionary_service = DictionaryService(translation_service=translation_service)
 ocr_service = OCRService()
+topic_classification_service = TopicClassificationService()
 
 # 업로드 디렉토리 설정
 upload_dir = backend_path / "uploads"
@@ -198,9 +200,13 @@ async def translate_text(request: TranslationRequest):
         
         words = vocabulary_service.extract_words(request.text)
         
+        # 주제 분류
+        topic = topic_classification_service.classify(request.text)
+        
         return TranslationResponse(
             paragraphs=translated_paragraphs,
-            words=words
+            words=words,
+            topic=topic
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -233,7 +239,8 @@ async def save_study(request: SaveStudyRequest):
             korean_text=request.korean_text,
             paragraphs=paragraphs_dict,
             current_step=request.current_step,
-            words=request.words
+            words=request.words,
+            topic=request.topic
         )
         
         print(f"Study saved with ID: {study_id}")
