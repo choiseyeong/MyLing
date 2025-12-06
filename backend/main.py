@@ -3,7 +3,6 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import os
-import re
 from pathlib import Path
 from dotenv import load_dotenv
 from typing import List, Optional
@@ -20,29 +19,36 @@ from models.schemas import (
     TranslationResponse,
     SaveStudyRequest,
     StudyResponse,
-    WordResponse,
-    ReorganizeParagraphsRequest
+    WordResponse
 )
 
 # 현재 파일의 디렉토리 기준으로 api.env 파일 경로 설정
 env_path = Path(__file__).parent / "api.env"
+print(f"Looking for env file at: {env_path}")
+print(f"File exists: {env_path.exists()}")
 
 if env_path.exists():
     # api.env 파일을 직접 읽어서 환경 변수 설정
     try:
         with open(env_path, 'r', encoding='utf-8') as f:
             content = f.read()
+            print(f"File content (first 50 chars): {repr(content[:50])}")
+            print(f"File content length: {len(content)}")
             
             if not content:
+                print("WARNING: File is empty!")
                 # 파일을 다시 읽어보기 (바이너리 모드)
                 with open(env_path, 'rb') as fb:
                     binary_content = fb.read()
+                    print(f"Binary content: {binary_content[:50]}")
                     content = binary_content.decode('utf-8')
+                    print(f"Decoded content: {repr(content[:50])}")
             
             # 여러 줄바꿈 문자 처리
             lines = content.replace('\r\n', '\n').replace('\r', '\n').split('\n')
+            print(f"Number of lines: {len(lines)}")
             
-            for line in lines:
+            for i, line in enumerate(lines):
                 line = line.strip()
                 if line and not line.startswith('#') and '=' in line:
                     parts = line.split('=', 1)
@@ -50,24 +56,55 @@ if env_path.exists():
                         key = parts[0].strip()
                         value = parts[1].strip()
                         os.environ[key] = value
+                        print(f"Set environment variable: {key} = {value[:20]}...")
+                        # 즉시 확인
+                        test_key = os.getenv(key)
+                        print(f"  Verification: os.getenv('{key}') = {test_key is not None}")
+                        if test_key:
+                            print(f"  Value: {test_key[:20]}...")
     except Exception as e:
+        print(f"Error reading env file: {e}")
         import traceback
         traceback.print_exc()
 else:
     # api.env가 없으면 기본 .env 파일 로드 시도
+    print("api.env not found, trying load_dotenv()")
     load_dotenv()
 
 # 확인
 api_key = os.getenv('DEEPL_API_KEY')
-if not api_key:
-    print("ERROR: DEEPL_API_KEY is not set!")
+print(f"DEEPL_API_KEY after loading: {api_key is not None}")
+if api_key:
+    print(f"DEEPL_API_KEY value: {api_key[:20]}...")
+else:
+    print("ERROR: DEEPL_API_KEY is still None!")
+    print(f"All env vars with DEEPL: {[k for k in os.environ.keys() if 'DEEPL' in k]}")
 
 app = FastAPI(title="MyLing API", version="1.0.0")
 
-# CORS 설정 (개발 환경: 모든 localhost 포트 허용)
+# CORS 설정 (환경 변수로 관리, 없으면 기본값 사용)
+# CORS_ALLOWED_ORIGINS 환경 변수에 쉼표로 구분된 도메인 목록 설정
+# 예: CORS_ALLOWED_ORIGINS=http://localhost:3000,https://your-frontend.vercel.app
+cors_origins_env = os.getenv('CORS_ALLOWED_ORIGINS', '')
+if cors_origins_env:
+    # 환경 변수가 있으면 쉼표로 분리하여 리스트로 변환
+    allowed_origins = [origin.strip() for origin in cors_origins_env.split(',') if origin.strip()]
+else:
+    # 환경 변수가 없으면 기본값 (개발 환경)
+    allowed_origins = [
+        "http://localhost:3000", 
+        "http://localhost:3001", 
+        "http://localhost:3002", 
+        "http://127.0.0.1:3000", 
+        "http://127.0.0.1:3001", 
+        "http://127.0.0.1:3002"
+    ]
+
+print(f"CORS allowed origins: {allowed_origins}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://127.0.0.1:3000", "http://127.0.0.1:3001", "http://127.0.0.1:3002"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -89,6 +126,8 @@ async def root():
 async def upload_file(file: UploadFile = File(...)):
     """Upload file and extract text using OCR"""
     try:
+        print(f"Received file upload: {file.filename}, content_type: {file.content_type}")
+        
         # 파일 저장
         upload_dir = "uploads"
         os.makedirs(upload_dir, exist_ok=True)
@@ -97,12 +136,17 @@ async def upload_file(file: UploadFile = File(...)):
         safe_filename = file.filename.replace("..", "").replace("/", "").replace("\\", "")
         file_path = os.path.join(upload_dir, safe_filename)
         
+        print(f"Saving file to: {file_path}")
         with open(file_path, "wb") as buffer:
             content = await file.read()
             buffer.write(content)
         
+        print(f"File saved, size: {len(content)} bytes")
+        
         # OCR로 텍스트 추출
+        print(f"Extracting text from: {file_path}")
         extracted_text = await ocr_service.extract_text(file_path, file.content_type)
+        print(f"Extracted text length: {len(extracted_text)}")
         
         # 임시 파일 삭제 (선택사항)
         # os.remove(file_path)
@@ -120,11 +164,7 @@ async def upload_file(file: UploadFile = File(...)):
 
 @app.post("/api/translate", response_model=TranslationResponse)
 async def translate_text(request: TranslationRequest):
-<<<<<<< HEAD
     """Translate English text to Korean"""
-=======
-    """영어 텍스트를 한국어로 번역 (문단 구분 포함)"""
->>>>>>> 13a79e5 (주제 분류 & 링기의 배달 페이지 제작)
     try:
         # 1. 텍스트를 문단 단위로 분리
         paragraphs_text = translation_service.split_into_paragraphs(request.text)
@@ -140,12 +180,9 @@ async def translate_text(request: TranslationRequest):
             for sentence in sentences:
                 if sentence.strip():
                     korean = await translation_service.translate(sentence)
-                    # 번역 결과에서 문단 번호 패턴 제거 (예: "(1)", "(2)" 등)
-                    cleaned_korean = re.sub(r'^\(?\d+\)?[\.\)\-—\s]+', '', korean.strip())
-                    cleaned_english = re.sub(r'^\(?\d+\)?[\.\)\-—\s]+', '', sentence.strip())
                     translated_pairs.append({
-                        "english": cleaned_english,
-                        "korean": cleaned_korean
+                        "english": sentence.strip(),
+                        "korean": korean
                     })
             
             # 문장이 있는 문단만 추가
@@ -168,67 +205,6 @@ async def translate_text(request: TranslationRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/paragraphs/reorganize", response_model=TranslationResponse)
-async def reorganize_paragraphs(request: ReorganizeParagraphsRequest):
-    """문단 재구성 - 문장 인덱스 범위로 문단 분리/병합"""
-    try:
-        # 모든 문장을 평면화
-        all_sentences = []
-        for para in request.paragraphs:
-            all_sentences.extend(para.sentences)
-        
-        if not all_sentences:
-            raise ValueError("문장이 없습니다.")
-        
-        # 문단 경계 검증
-        if not request.paragraph_boundaries or request.paragraph_boundaries[0] != 0:
-            raise ValueError("첫 번째 문단은 인덱스 0에서 시작해야 합니다.")
-        
-        # 경계가 문장 개수를 초과하지 않는지 확인
-        # 마지막 경계는 문장 개수와 같을 수 있음 (마지막 문단의 끝)
-        if any(boundary > len(all_sentences) for boundary in request.paragraph_boundaries):
-            raise ValueError("문단 경계가 문장 개수를 초과합니다.")
-        
-        # 경계를 정렬하고 중복 제거
-        boundaries = sorted(set(request.paragraph_boundaries))
-        if boundaries[0] != 0:
-            boundaries.insert(0, 0)
-        
-        # 문단 재구성
-        new_paragraphs = []
-        for i in range(len(boundaries)):
-            start_idx = boundaries[i]
-            end_idx = boundaries[i + 1] if i + 1 < len(boundaries) else len(all_sentences)
-            
-            paragraph_sentences = all_sentences[start_idx:end_idx]
-            if paragraph_sentences:
-                new_paragraphs.append({
-                    "sentences": [
-                        {"english": sent.english, "korean": sent.korean}
-                        for sent in paragraph_sentences
-                    ]
-                })
-        
-        # 원본 텍스트 재구성 (단어 추출 및 주제 분류용)
-        english_text = " ".join(sent.english for sent in all_sentences)
-        korean_text = " ".join(sent.korean for sent in all_sentences)
-        
-        # 단어 추출
-        words = vocabulary_service.extract_words(english_text)
-        
-        # 주제 분류
-        topic = topic_classification_service.classify(english_text)
-        
-        return TranslationResponse(
-            paragraphs=new_paragraphs,
-            words=words,
-            topic=topic
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
 @app.post("/api/study/save")
 async def save_study(request: SaveStudyRequest):
     """Save study content"""
@@ -238,6 +214,10 @@ async def save_study(request: SaveStudyRequest):
             raise ValueError("제목을 입력해주세요.")
         if not request.paragraphs or len(request.paragraphs) == 0:
             raise ValueError("번역된 내용이 없습니다.")
+        
+        print(f"Received save request: title={request.title}, step={request.current_step}")
+        print(f"Paragraphs count: {len(request.paragraphs) if request.paragraphs else 0}")
+        print(f"Words count: {len(request.words) if request.words else 0}")
         
         # paragraphs를 dict 리스트로 변환
         paragraphs_dict = []
@@ -260,9 +240,13 @@ async def save_study(request: SaveStudyRequest):
             topic=request.topic
         )
         
+        print(f"Study saved with ID: {study_id}")
+        
         # 단어 저장
         if request.words:
+            print(f"Saving {len(request.words)} words...")
             await vocabulary_service.save_words(request.words, study_id, dictionary_service)
+            print("Words saved successfully")
         
         return {"success": True, "study_id": study_id}
     except ValueError as e:
@@ -315,6 +299,7 @@ async def delete_study(study_id: int):
     try:
         # 먼저 해당 지문의 모든 단어 삭제
         deleted_count = await vocabulary_service.delete_words_by_study_id(study_id)
+        print(f"Deleted {deleted_count} words for study_id {study_id}")
         
         # 그 다음 지문 삭제
         await storage_service.delete_study(study_id)
