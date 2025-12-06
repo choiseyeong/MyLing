@@ -164,10 +164,14 @@ class TopicClassificationService:
         
         if self.use_model:
             try:
-                # 더 가벼운 모델 사용 (빠른 처리)
+                # 더 가벼운 모델 사용 (빠른 처리, 용량 절약)
+                # 옵션:
+                # - "facebook/bart-large-mnli" (기본, 정확하지만 큼 ~1.6GB)
+                # - "typeform/distilbert-base-uncased-mnli" (가벼움 ~250MB, 빠름)
+                # - "valhalla/distilbart-mnli-12-3" (중간 ~500MB)
                 self.classifier = pipeline(
                     "zero-shot-classification",
-                    model="facebook/bart-large-mnli",
+                    model="typeform/distilbert-base-uncased-mnli",  # 더 가벼운 모델 사용
                     device=-1  # CPU 사용 (-1), GPU가 있으면 0으로 변경 가능
                 )
                 logger.info("Zero-shot classification 모델이 성공적으로 로드되었습니다.")

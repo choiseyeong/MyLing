@@ -50,9 +50,9 @@ function splitText(
 }
 
 /**
- * 로고 이미지를 로드합니다.
+ * 로고 이미지를 로드하고 원본 크기 정보를 반환합니다.
  */
-async function loadLogo(): Promise<string | null> {
+async function loadLogo(): Promise<{ dataUrl: string; width: number; height: number } | null> {
   try {
     const response = await fetch('/myling_logo.png')
     if (!response.ok) {
@@ -60,13 +60,22 @@ async function loadLogo(): Promise<string | null> {
     }
     const blob = await response.blob()
     return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        const result = reader.result as string
-        resolve(result)
+      const img = new Image()
+      img.onload = () => {
+        const reader = new FileReader()
+        reader.onloadend = () => {
+          const dataUrl = reader.result as string
+          resolve({
+            dataUrl,
+            width: img.width,
+            height: img.height,
+          })
+        }
+        reader.onerror = reject
+        reader.readAsDataURL(blob)
       }
-      reader.onerror = reject
-      reader.readAsDataURL(blob)
+      img.onerror = reject
+      img.src = URL.createObjectURL(blob)
     })
   } catch (error) {
     console.error('Error loading logo:', error)
@@ -82,32 +91,37 @@ async function addPageHeader(
   margin: number,
   pageWidth: number
 ): Promise<void> {
-  const logoSize = 7.5 // 로고 크기 절반
-  const logoDataUrl = await loadLogo()
+  const logoHeight = 4 // 로고 높이 (mm)
+  const logoTopMargin = 5 // 종이 맨 위와 로고 사이 거리
+  const logoInfo = await loadLogo()
 
-  if (logoDataUrl) {
+  if (logoInfo) {
     try {
-      doc.addImage(logoDataUrl, 'PNG', margin, margin, logoSize * 2, logoSize)
+      // 원본 비율 유지: 원본 가로/세로 비율에 맞춰 가로 크기 계산
+      const aspectRatio = logoInfo.width / logoInfo.height
+      const logoWidth = logoHeight * aspectRatio
+      doc.addImage(logoInfo.dataUrl, 'PNG', margin, logoTopMargin, logoWidth, logoHeight)
     } catch (error) {
       console.error('Error adding logo image:', error)
       // 폴백: 텍스트로 표시
       doc.setFontSize(8)
-      doc.text('MyLing', margin, margin + 5)
+      doc.text('MyLing', margin, logoTopMargin + 5)
     }
   } else {
     // 폴백: 텍스트로 표시
     doc.setFontSize(8)
-    doc.text('MyLing', margin, margin + 5)
+    doc.text('MyLing', margin, logoTopMargin + 5)
   }
 
   // 연보라색 선 추가
   doc.setDrawColor(200, 180, 255) // 연보라색
   doc.setLineWidth(0.5)
+  const lineY = logoTopMargin + logoHeight + 1 // 선과 로고 사이 간격 더 줄임 (2 -> 1)
   doc.line(
     margin,
-    margin + logoSize + 5,
+    lineY,
     pageWidth - margin,
-    margin + logoSize + 5
+    lineY
   )
 }
 
@@ -124,10 +138,11 @@ function addPageFooter(
 ): void {
   if (totalPages >= 2) {
     doc.setFontSize(10)
+    // 정수로만 표시하고 더 오른쪽 하단으로 이동
     doc.text(
-      `${pageNumber} / ${totalPages}`,
-      pageWidth - margin - 20,
-      pageHeight - margin + 5
+      `${pageNumber}`,
+      pageWidth - margin - 5, // 더 오른쪽으로 (20 -> 5)
+      pageHeight - margin + 3 // 더 아래로 (5 -> 3)
     )
   }
 }
@@ -160,20 +175,21 @@ export async function generatePDFStep2(
     console.error('Failed to load font, using default:', error)
   }
 
-  let y = margin + 30 // 헤더 공간 확보 (연보라색 선과 제목 사이 간격 더 넓게)
+  const headerHeight = 5 + 4 + 1 + 1 // logoTopMargin(5) + logoHeight(4) + line spacing(1) + title margin(1, 더 줄임)
+  let y = margin + headerHeight // 헤더 공간 확보 (로고와 선 포함)
   let currentPage = 1
   const totalPages = 1 // 초기값, 나중에 업데이트
 
-  // 제목 추가
+  // 제목 추가 (산스체, 더 두껍게)
   doc.setFontSize(titleFontSize)
-  doc.setFont('MalgunGothic', 'bold')
+  doc.setFont('helvetica', 'bold') // 산스체로 변경
   const titleLines = splitText(doc, title, contentWidth, titleFontSize)
   for (const line of titleLines) {
     if (y + lineHeight > pageHeight - margin - 10) {
       doc.addPage()
       currentPage++
       await addPageHeader(doc, margin, pageWidth)
-      y = margin + 30
+      y = margin + headerHeight
     }
     doc.text(line, margin, y)
     y += lineHeight + 2
@@ -197,25 +213,13 @@ export async function generatePDFStep2(
     }
     
     for (const sentence of paragraph.sentences) {
-      // 영어 문장
+      // 영어 문장과 한국어 문장을 함께 처리 (분리되지 않도록)
       const englishLines = splitText(
         doc,
         sentence.english,
         contentWidth,
         bodyFontSize
       )
-      for (const line of englishLines) {
-        if (y + lineHeight > pageHeight - margin - 10) {
-          doc.addPage()
-          currentPage++
-          await addPageHeader(doc, margin, pageWidth)
-          y = margin + 30
-        }
-        doc.text(line, margin, y)
-        y += lineHeight
-      }
-
-      // 한국어 문장
       doc.setFontSize(koreanFontSize)
       doc.setTextColor(150, 150, 150) // 연한 회색
       const koreanLines = splitText(
@@ -224,16 +228,34 @@ export async function generatePDFStep2(
         contentWidth,
         koreanFontSize
       )
-      for (const line of koreanLines) {
-        if (y + lineHeight > pageHeight - margin - 10) {
-          doc.addPage()
-          currentPage++
-          await addPageHeader(doc, margin, pageWidth)
-          y = margin + 30
-        }
+      
+      // 영어+한글 전체 높이 계산
+      const totalHeight = (englishLines.length + koreanLines.length) * lineHeight + 2
+      
+      // 페이지 넘김 체크: 영어+한글 전체가 들어갈 공간이 있는지 확인
+      if (y + totalHeight > pageHeight - margin - 10) {
+        doc.addPage()
+        currentPage++
+        await addPageHeader(doc, margin, pageWidth)
+        y = margin + headerHeight
+      }
+      
+      // 영어 문장 출력
+      doc.setFontSize(bodyFontSize)
+      doc.setTextColor(0, 0, 0) // 검은색
+      for (const line of englishLines) {
         doc.text(line, margin, y)
         y += lineHeight
       }
+
+      // 한국어 문장 출력
+      doc.setFontSize(koreanFontSize)
+      doc.setTextColor(150, 150, 150) // 연한 회색
+      for (const line of koreanLines) {
+        doc.text(line, margin, y)
+        y += lineHeight
+      }
+      
       // 영어로 돌아가기 위해 색상과 폰트 크기 복원
       doc.setFontSize(bodyFontSize)
       doc.setTextColor(0, 0, 0) // 검은색으로 복원
@@ -322,19 +344,20 @@ export async function generatePDFStep3(
     wordsByParagraph[wp.paragraphIndex].push(wp)
   })
 
-  let y = margin + 30 // 헤더 공간 확보 (연보라색 선과 제목 사이 간격 더 넓게)
+  const headerHeight = 8
+  let y = margin + headerHeight // 헤더 공간 확보 (로고와 선 포함)
   let currentPage = 1
 
-  // 제목 추가
+  // 제목 추가 (산스체, 더 두껍게)
   doc.setFontSize(titleFontSize)
-  doc.setFont('MalgunGothic', 'bold')
+  doc.setFont('helvetica', 'bold') // 산스체로 변경
   const titleLines = splitText(doc, title, mainContentWidth, titleFontSize)
   for (const line of titleLines) {
     if (y + lineHeight > pageHeight - margin - 10) {
       doc.addPage()
       currentPage++
       await addPageHeader(doc, margin, pageWidth)
-      y = margin + 30
+      y = margin + headerHeight
     }
     doc.text(line, mainContentX, y)
     y += lineHeight + 2
@@ -368,25 +391,13 @@ export async function generatePDFStep3(
       const sentenceKey = `${pIndex}-${sIndex}`
       const sentenceStartY = y
 
-      // 영어 문장
+      // 영어 문장과 한국어 문장을 함께 처리 (분리되지 않도록)
       const englishLines = splitText(
         doc,
         sentence.english,
         mainContentWidth,
         bodyFontSize
       )
-      for (const line of englishLines) {
-        if (y + lineHeight > pageHeight - margin - 10) {
-          doc.addPage()
-          currentPage++
-          await addPageHeader(doc, margin, pageWidth)
-          y = margin + 30
-        }
-        doc.text(line, mainContentX, y)
-        y += lineHeight
-      }
-
-      // 한국어 문장
       doc.setFontSize(koreanFontSize)
       doc.setTextColor(150, 150, 150) // 연한 회색
       const koreanLines = splitText(
@@ -395,16 +406,34 @@ export async function generatePDFStep3(
         mainContentWidth,
         koreanFontSize
       )
-      for (const line of koreanLines) {
-        if (y + lineHeight > pageHeight - margin - 10) {
-          doc.addPage()
-          currentPage++
-          await addPageHeader(doc, margin, pageWidth)
-          y = margin + 30
-        }
+      
+      // 영어+한글 전체 높이 계산
+      const totalHeight = (englishLines.length + koreanLines.length) * lineHeight + 2
+      
+      // 페이지 넘김 체크: 영어+한글 전체가 들어갈 공간이 있는지 확인
+      if (y + totalHeight > pageHeight - margin - 10) {
+        doc.addPage()
+        currentPage++
+        await addPageHeader(doc, margin, pageWidth)
+        y = margin + headerHeight
+      }
+      
+      // 영어 문장 출력
+      doc.setFontSize(bodyFontSize)
+      doc.setTextColor(0, 0, 0) // 검은색
+      for (const line of englishLines) {
         doc.text(line, mainContentX, y)
         y += lineHeight
       }
+
+      // 한국어 문장 출력
+      doc.setFontSize(koreanFontSize)
+      doc.setTextColor(150, 150, 150) // 연한 회색
+      for (const line of koreanLines) {
+        doc.text(line, mainContentX, y)
+        y += lineHeight
+      }
+      
       // 영어로 돌아가기 위해 색상과 폰트 크기 복원
       doc.setFontSize(bodyFontSize)
       doc.setTextColor(0, 0, 0) // 검은색으로 복원
@@ -447,7 +476,7 @@ export async function generatePDFStep3(
             doc.addPage()
             currentPage++
             await addPageHeader(doc, margin, pageWidth)
-            wordY = margin + 30
+            wordY = margin + headerHeight
           }
           doc.text(line, wordColumnX, wordY)
           wordY += lineHeight
@@ -469,7 +498,7 @@ export async function generatePDFStep3(
               doc.addPage()
               currentPage++
               await addPageHeader(doc, margin, pageWidth)
-              wordY = margin + 20
+              wordY = margin + headerHeight
             }
             doc.text(line, wordColumnX, wordY)
             wordY += lineHeight

@@ -1,6 +1,8 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { generatePDFStep2 } from '@/lib/pdfGenerator'
+import { apiClient } from '@/lib/api'
 
 interface TranslationViewProps {
   title: string
@@ -29,6 +31,83 @@ export default function TranslationView({
   onShowPdfWarning,
   uploadedFiles = [],
 }: TranslationViewProps) {
+  const [isEditingParagraphs, setIsEditingParagraphs] = useState(false)
+  const [localTranslationData, setLocalTranslationData] = useState(translationData)
+  const [paragraphBoundaries, setParagraphBoundaries] = useState<number[]>([])
+  const [isReorganizing, setIsReorganizing] = useState(false)
+  const [showSuccessToast, setShowSuccessToast] = useState(false)
+  const [showErrorToast, setShowErrorToast] = useState(false)
+  const [toastMessage, setToastMessage] = useState('')
+  
+  // translationData가 변경되면 localTranslationData 업데이트
+  useEffect(() => {
+    if (translationData) {
+      setLocalTranslationData(translationData)
+      // 초기 문단 경계 설정 (각 문단의 시작 인덱스)
+      let currentIndex = 0
+      const boundaries: number[] = [0]
+      const totalSentences = translationData.paragraphs.reduce((sum: number, para: any) => sum + para.sentences.length, 0)
+      
+      translationData.paragraphs.forEach((para: any, index: number) => {
+        currentIndex += para.sentences.length
+        // 마지막 문단이 아니고, 문장 개수를 초과하지 않는 경우만 경계 추가
+        if (index < translationData.paragraphs.length - 1 && currentIndex < totalSentences) {
+          boundaries.push(currentIndex)
+        }
+      })
+      setParagraphBoundaries(boundaries)
+    }
+  }, [translationData])
+  
+  // 모든 문장을 평면화
+  const getAllSentences = () => {
+    if (!localTranslationData?.paragraphs) return []
+    return localTranslationData.paragraphs.flatMap((para: any) => para.sentences)
+  }
+  
+  // 문장 인덱스에서 문단 경계 추가/제거
+  const toggleParagraphBoundary = (sentenceIndex: number) => {
+    setParagraphBoundaries(prev => {
+      if (prev.includes(sentenceIndex)) {
+        // 경계 제거 (병합)
+        return prev.filter(b => b !== sentenceIndex)
+      } else {
+        // 경계 추가 (분리)
+        const newBoundaries = [...prev, sentenceIndex].sort((a, b) => a - b)
+        // 0은 항상 포함되어야 함
+        if (!newBoundaries.includes(0)) {
+          newBoundaries.unshift(0)
+        }
+        return newBoundaries
+      }
+    })
+  }
+  
+  // 문단 재구성 적용
+  const handleApplyReorganization = async () => {
+    if (!localTranslationData) return
+    
+    setIsReorganizing(true)
+    try {
+      const result = await apiClient.reorganizeParagraphs({
+        paragraphs: localTranslationData.paragraphs,
+        paragraph_boundaries: paragraphBoundaries
+      })
+      
+      setLocalTranslationData(result)
+      setIsEditingParagraphs(false)
+      setToastMessage('문단이 재구성되었습니다.')
+      setShowSuccessToast(true)
+      setTimeout(() => setShowSuccessToast(false), 3000)
+    } catch (error: any) {
+      console.error('Reorganization failed:', error)
+      setToastMessage(`문단 재구성에 실패했습니다: ${error.response?.data?.detail || error.message}`)
+      setShowErrorToast(true)
+      setTimeout(() => setShowErrorToast(false), 3000)
+    } finally {
+      setIsReorganizing(false)
+    }
+  }
   // 주제 색상 가져오기
   const getTopicColor = (topic: string | undefined) => {
     if (!topic) return { bg: 'bg-gray-100', text: 'text-gray-600', hover: 'hover:bg-gray-200' }
@@ -185,6 +264,22 @@ export default function TranslationView({
 
   return (
     <div>
+      {/* 토스트 메시지 */}
+      {showSuccessToast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 opacity-100 translate-y-0">
+          <div className="bg-primary text-white px-6 py-3 rounded-full shadow-lg text-sm font-semibold">
+            {toastMessage}
+          </div>
+        </div>
+      )}
+      {showErrorToast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 opacity-100 translate-y-0">
+          <div className="bg-red-500 text-white px-6 py-3 rounded-full shadow-lg text-sm font-semibold">
+            {toastMessage}
+          </div>
+        </div>
+      )}
+      
       {/* 제목 및 액션 버튼 */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex-1">
@@ -219,6 +314,30 @@ export default function TranslationView({
           </div>
         </div>
         <div className="flex gap-3 ml-4">
+          <button
+            onClick={() => setIsEditingParagraphs(!isEditingParagraphs)}
+            className={`px-4 py-2 rounded-lg ${
+              isEditingParagraphs
+                ? 'hover:opacity-90'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer'
+            }`}
+            style={isEditingParagraphs ? { 
+              backgroundColor: '#E8E0FF', 
+              color: '#7556FF' 
+            } : undefined}
+          >
+            {isEditingParagraphs ? '문단 편집 마치기' : '문단 편집'}
+          </button>
+          {isEditingParagraphs && (
+            <button
+              onClick={handleApplyReorganization}
+              disabled={isReorganizing}
+              className="px-4 py-2 rounded-lg text-white hover:opacity-90 disabled:bg-gray-300"
+              style={{ backgroundColor: '#7556FF' }}
+            >
+              {isReorganizing ? '적용 중...' : '적용하기'}
+            </button>
+          )}
           <button
             onClick={onSave}
             className={`px-4 py-2 rounded-lg ${
@@ -255,26 +374,75 @@ export default function TranslationView({
       </div>
 
       {/* 번역 결과 */}
-      <div className="space-y-8">
-        {translationData.paragraphs.map((paragraph: any, pIndex: number) => (
-          <div key={pIndex}>
-            <h3 className="text-lg font-semibold mb-4">
-              | Paragraph {pIndex + 1}
-            </h3>
-            <div className="space-y-4">
-              {paragraph.sentences.map((sentence: any, sIndex: number) => (
-                <div
-                  key={sIndex}
-                  className="grid grid-cols-2 gap-4 p-4 border border-gray-200 rounded"
-                >
-                  <div className="text-gray-800">{sentence.english}</div>
-                  <div className="text-gray-600">{sentence.korean}</div>
-                </div>
-              ))}
-            </div>
+      {isEditingParagraphs ? (
+        // 편집 모드: 모든 문장을 평면화하여 표시하고 문단 경계 설정 가능
+        <div className="space-y-4">
+          <div className="bg-blue-50 p-4 rounded-lg mb-4">
+            <p className="text-sm text-blue-800">
+              💡 각 문장 위의 <strong>"여기서 분리"</strong> 버튼을 클릭하여 문단을 분리하거나 병합할 수 있습니다.
+            </p>
           </div>
-        ))}
-      </div>
+          {getAllSentences().map((sentence: any, sIndex: number) => {
+            const isParagraphStart = paragraphBoundaries.includes(sIndex)
+            const prevIsParagraphStart = paragraphBoundaries.includes(sIndex - 1)
+            const showDivider = isParagraphStart && sIndex > 0
+            
+            return (
+              <div key={sIndex}>
+                {showDivider && (
+                  <div className="my-6 border-t-2 relative" style={{ borderColor: '#7556FF' }}>
+                    <span className="absolute left-1/2 transform -translate-x-1/2 -top-3 bg-white px-3 font-semibold" style={{ color: '#7556FF' }}>
+                      문단 구분
+                    </span>
+                  </div>
+                )}
+                <div className="relative">
+                  {sIndex > 0 && (
+                    <button
+                      onClick={() => toggleParagraphBoundary(sIndex)}
+                      className={`absolute -top-3 left-1/2 transform -translate-x-1/2 px-3 py-1 text-xs rounded-full z-10 text-white hover:opacity-90 ${
+                        isParagraphStart
+                          ? ''
+                          : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
+                      }`}
+                      style={isParagraphStart ? { backgroundColor: '#7556FF' } : undefined}
+                      title={isParagraphStart ? '문단 병합 (클릭)' : '여기서 분리 (클릭)'}
+                    >
+                      {isParagraphStart ? '✓ 분리됨' : '여기서 분리'}
+                    </button>
+                  )}
+                  <div className="grid grid-cols-2 gap-4 p-4 border border-gray-200 rounded bg-white">
+                    <div className="text-gray-800">{sentence.english}</div>
+                    <div className="text-gray-600">{sentence.korean}</div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        // 일반 모드: 기존 문단 구조로 표시
+        <div className="space-y-8">
+          {localTranslationData?.paragraphs?.map((paragraph: any, pIndex: number) => (
+            <div key={pIndex}>
+              <h3 className="text-lg font-semibold mb-4">
+                | Paragraph {pIndex + 1}
+              </h3>
+              <div className="space-y-4">
+                {paragraph.sentences.map((sentence: any, sIndex: number) => (
+                  <div
+                    key={sIndex}
+                    className="grid grid-cols-2 gap-4 p-4 border border-gray-200 rounded"
+                  >
+                    <div className="text-gray-800">{sentence.english}</div>
+                    <div className="text-gray-600">{sentence.korean}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

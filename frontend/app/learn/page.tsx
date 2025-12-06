@@ -18,6 +18,13 @@ export default function LearnPage() {
   const stepParam = Number(stepParamRaw)
   const safeInitialStep = [1, 2, 3].includes(stepParam) ? stepParam : 1
   const [step, setStep] = useState(safeInitialStep)
+
+  // 페이지 로드 시 스크롤을 맨 위로 초기화
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo(0, 0)
+    }
+  }, [searchParams])
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [extractedText, setExtractedText] = useState('')
   const [translationData, setTranslationData] = useState<any>(null)
@@ -250,6 +257,22 @@ export default function LearnPage() {
   return (
     <div className="min-h-screen px-8 py-8">
       <ProgressBar currentStep={displayStep} isTransitioning={isTranslating || isUploading} />
+      
+      {/* Step 2 안내 메시지 (ghost_9) */}
+      {step === 2 && !isTranslating && translationData && (
+        <div className="max-w-4xl mx-auto mt-6 mb-4 flex items-center justify-center gap-3">
+          <div className="flex-shrink-0">
+            <img 
+              src="/ghost_9.png" 
+              alt="안내" 
+              className="w-12 h-12 ghost-scale-animation"
+            />
+          </div>
+          <p className="text-white text-sm">
+            만약 문단이 올바르게 분리되지 않았다면, <strong className="font-semibold">'문단 편집'</strong> 기능을 사용해 보세요!
+          </p>
+        </div>
+      )}
       
       {/* 번역 중 전체 화면 로딩 */}
       {isTranslating && (

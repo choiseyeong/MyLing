@@ -327,15 +327,17 @@ export default function VocabularyPage() {
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-semibold">단어 목록</h3>
                 <div className="flex items-center gap-4">
-                  {/* 정렬 드롭다운 */}
-                  <select
-                    value={sortOrder}
-                    onChange={(e) => setSortOrder(e.target.value as 'recent' | 'oldest')}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  >
-                    <option value="recent">최근 학습한 순</option>
-                    <option value="oldest">오래된 학습 순</option>
-                  </select>
+                  {/* 정렬 드롭다운 - 특정 지문 선택 시 숨김 */}
+                  {!(filter === 'by-passage' && selectedStudyId !== null) && (
+                    <select
+                      value={sortOrder}
+                      onChange={(e) => setSortOrder(e.target.value as 'recent' | 'oldest')}
+                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    >
+                      <option value="recent">최근 학습한 순</option>
+                      <option value="oldest">오래된 학습 순</option>
+                    </select>
+                  )}
                   
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -390,22 +392,33 @@ export default function VocabularyPage() {
                           }`}
                         >
                           <td className="py-2">
-                            <button
-                              onClick={() =>
-                                handleToggleKnown(word.id, word.known)
-                              }
-                              className={`w-4 h-4 rounded-full mr-3 ${
-                                word.known ? '' : 'bg-gray-400'
-                              }`}
-                              style={
-                                word.known
-                                  ? {
-                                      backgroundImage:
-                                        'linear-gradient(180deg, #C6B3FF 0%, #7556FF 100%)',
-                                    }
-                                  : undefined
-                              }
-                            />
+                            <div className="relative inline-block group">
+                              <button
+                                onClick={() =>
+                                  handleToggleKnown(word.id, word.known)
+                                }
+                                className={`w-4 h-4 rounded-full mr-3 ${
+                                  word.known ? '' : 'bg-gray-400'
+                                }`}
+                                style={
+                                  word.known
+                                    ? {
+                                        backgroundImage:
+                                          'linear-gradient(180deg, #C6B3FF 0%, #7556FF 100%)',
+                                      }
+                                    : undefined
+                                }
+                              />
+                              {/* 호버 툴팁 */}
+                              <div className="absolute bottom-full left-0 mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
+                                <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap relative">
+                                  {word.known ? '아는 단어에요' : '이제 아는 단어에요'}
+                                  <div className="absolute top-full left-2 -mt-1">
+                                    <div className="w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
                             <span className="font-normal text-base">{word.word}</span>
                           </td>
                           <td className="py-2 pr-6 break-words">

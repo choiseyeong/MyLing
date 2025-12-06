@@ -68,7 +68,7 @@ export default function DeliveryPage() {
   const getTopicColor = (topicTitle: string) => {
     switch (topicTitle) {
       case '인문·사회':
-        return '#93C5FD' // 파란계열 연한 버전
+        return '#0088FF' // 파란계열 연한 버전
       case '자연과학':
         return '#6EE7B7' // 초록 연한 버전
       case '공학·기술':

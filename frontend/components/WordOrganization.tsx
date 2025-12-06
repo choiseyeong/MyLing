@@ -298,7 +298,12 @@ export default function WordOrganization({
             PDF 저장하기 &gt;
           </button>
           <button
-            onClick={() => router.push('/')}
+            onClick={() => {
+              router.push('/')
+              if (typeof window !== 'undefined') {
+                window.scrollTo(0, 0)
+              }
+            }}
             className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark font-semibold"
           >
             홈으로

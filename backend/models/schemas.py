@@ -46,5 +46,17 @@ class WordResponse(BaseModel):
     study_title: Optional[str] = None
     known: bool = False
 
+class ReorganizeParagraphsRequest(BaseModel):
+    """문단 재구성 요청 - 문장 인덱스 범위로 문단 분리"""
+    paragraphs: List[Paragraph]  # 현재 문단 구조
+    paragraph_boundaries: List[int]  # 각 문단이 시작하는 문장 인덱스 (0부터 시작)
+    # 예: [0, 5, 10] → 첫 문단: 문장 0-4, 두 번째 문단: 문장 5-9, 세 번째 문단: 문장 10+
+
+class ReorganizeParagraphsRequest(BaseModel):
+    """문단 재구성 요청"""
+    paragraphs: List[Paragraph]  # 현재 문단 구조
+    paragraph_boundaries: List[int]  # 각 문단이 시작하는 문장 인덱스 (0부터 시작)
+    # 예: [0, 5, 10] → 첫 문단: 문장 0-4, 두 번째 문단: 문장 5-9, 세 번째 문단: 문장 10+
+
 
 

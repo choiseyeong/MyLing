@@ -166,53 +166,68 @@ export default function MyPage() {
             <div
               key={study.id}
               className="bg-white rounded-lg p-6 text-black relative hover:shadow-lg transition-shadow cursor-pointer"
-              onClick={() => router.push(`/learn?studyId=${study.id}&step=${study.current_step}`)}
+              onClick={() => {
+                router.push(`/learn?studyId=${study.id}&step=${study.current_step}`)
+                if (typeof window !== 'undefined') {
+                  setTimeout(() => window.scrollTo(0, 0), 100)
+                }
+              }}
             >
               <button
                 onClick={(e) => handleDelete(study.id, e)}
-                className="absolute top-4 right-4 text-gray-400 hover:text-red-500"
+                className="absolute top-6 right-4 text-gray-400 hover:text-red-500 z-10"
               >
                 🗑️
               </button>
 
-              <div className="flex items-start gap-4 mb-4">
-                <div className="text-2xl">📄</div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-xl font-bold">{study.title}</h3>
-                    {study.topic && (() => {
-                      const topicColor = getTopicColor(study.topic)
-                      const isClickable = study.topic !== '기타'
-                      return (
-                        <div className={`relative ${isClickable ? 'group' : ''}`}>
-                          <button
-                            onClick={(e) => handleTopicClick(study.topic, e)}
-                            className={`px-3 py-1 rounded-full text-sm font-semibold transition-colors ${
-                              typeof topicColor.bg === 'string' && topicColor.bg.startsWith('#')
+              <div className="flex items-start gap-3 mb-2 pr-1">
+                <div className="text-2xl flex-shrink-0">📄</div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3 mb-2 pr-5">
+                    <h3 
+                      className="text-xl font-bold truncate flex-1 min-w-0"
+                      style={{
+                        fontSize: 'clamp(0.875rem, 2vw, 1.25rem)',
+                        lineHeight: '1.5'
+                      }}
+                    >
+                      {study.title}
+                    </h3>
+                    {study.topic && (
+                      <div className={`relative flex-shrink-0 ${study.topic !== '기타' ? 'group' : ''}`}>
+                        <button
+                          onClick={(e) => handleTopicClick(study.topic, e)}
+                          className={`px-3 py-1 rounded-full text-sm font-semibold transition-colors ${
+                            (() => {
+                              const topicColor = getTopicColor(study.topic)
+                              return typeof topicColor.bg === 'string' && topicColor.bg.startsWith('#')
                                 ? `${topicColor.text} ${topicColor.hover}`
                                 : `${topicColor.bg} ${topicColor.text} ${topicColor.hover}`
-                            }`}
-                            style={
-                              typeof topicColor.bg === 'string' && topicColor.bg.startsWith('#')
+                            })()
+                          }`}
+                          style={
+                            (() => {
+                              const topicColor = getTopicColor(study.topic)
+                              return typeof topicColor.bg === 'string' && topicColor.bg.startsWith('#')
                                 ? { backgroundColor: topicColor.bg }
                                 : undefined
-                            }
-                          >
-                            {normalizeTopic(study.topic)}
-                          </button>
-                          {isClickable && (
-                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                              <div className="bg-gray-800 text-white text-xs px-3 py-1 rounded-lg whitespace-nowrap relative">
-                                클릭!
-                                <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
-                                  <div className="w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
-                                </div>
+                            })()
+                          }
+                        >
+                          {normalizeTopic(study.topic)}
+                        </button>
+                        {study.topic !== '기타' && (
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                            <div className="bg-gray-800 text-white text-xs px-3 py-1 rounded-lg whitespace-nowrap relative">
+                              클릭!
+                              <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
+                                <div className="w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
                               </div>
                             </div>
-                          )}
-                        </div>
-                      )
-                    })()}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <p className="text-sm text-gray-600 mb-1">
                     마지막 학습일: {study.last_studied_date}
@@ -231,6 +246,9 @@ export default function MyPage() {
                 onClick={(e) => {
                   e.stopPropagation()
                   router.push(`/learn?studyId=${study.id}&step=${study.current_step}`)
+                  if (typeof window !== 'undefined') {
+                    setTimeout(() => window.scrollTo(0, 0), 100)
+                  }
                 }}
                 className="mt-4 px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark float-right"
               >
@@ -271,7 +289,7 @@ export default function MyPage() {
                 </button>
                 <button
                   onClick={() => {
-                    router.push(`/delivery?topic=${selectedTopic}`)
+                    router.push(`/delivery?topic=${selectedTopic}`, { scroll: false })
                   }}
                   className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
                 >

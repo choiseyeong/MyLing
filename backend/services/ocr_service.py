@@ -1,11 +1,11 @@
-import pytesseract
-import pdfplumber
-from PIL import Image
+import pytesseract  # type: ignore
+import pdfplumber  # type: ignore
+from PIL import Image  # type: ignore
 import os
 import re
 from statistics import median
 from typing import Dict, List, Tuple
-from pytesseract import Output
+from pytesseract import Output  # type: ignore
 
 class OCRService:
     def __init__(self):
@@ -26,7 +26,11 @@ class OCRService:
             raise Exception(f"OCR extraction failed: {str(e)}")
     
     async def _extract_from_pdf(self, file_path: str) -> str:
-        """PDF에서 텍스트 추출 (문단 유지)"""
+        """PDF에서 텍스트 추출 (pdfplumber 방식)"""
+        return await self._extract_from_pdf_fallback(file_path)
+    
+    async def _extract_from_pdf_fallback(self, file_path: str) -> str:
+        """PDF에서 텍스트 추출 (기존 pdfplumber 방식 - Fallback)"""
         paragraphs: List[str] = []
         try:
             with pdfplumber.open(file_path) as pdf:
@@ -49,7 +53,11 @@ class OCRService:
         return "\n\n".join(paragraphs).strip()
     
     async def _extract_from_image(self, file_path: str) -> str:
-        """이미지에서 OCR로 텍스트 추출"""
+        """이미지에서 OCR로 텍스트 추출 (Tesseract 방식)"""
+        return await self._extract_from_image_fallback(file_path)
+    
+    async def _extract_from_image_fallback(self, file_path: str) -> str:
+        """이미지에서 OCR로 텍스트 추출 (기존 Tesseract 방식 - Fallback)"""
         try:
             # Tesseract가 설치되어 있는지 확인
             try:

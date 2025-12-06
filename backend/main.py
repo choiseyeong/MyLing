@@ -3,6 +3,7 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import os
+import re
 from pathlib import Path
 from dotenv import load_dotenv
 from typing import List, Optional
@@ -19,7 +20,8 @@ from models.schemas import (
     TranslationResponse,
     SaveStudyRequest,
     StudyResponse,
-    WordResponse
+    WordResponse,
+    ReorganizeParagraphsRequest
 )
 
 # 현재 파일의 디렉토리 기준으로 api.env 파일 경로 설정
@@ -138,9 +140,12 @@ async def translate_text(request: TranslationRequest):
             for sentence in sentences:
                 if sentence.strip():
                     korean = await translation_service.translate(sentence)
+                    # 번역 결과에서 문단 번호 패턴 제거 (예: "(1)", "(2)" 등)
+                    cleaned_korean = re.sub(r'^\(?\d+\)?[\.\)\-—\s]+', '', korean.strip())
+                    cleaned_english = re.sub(r'^\(?\d+\)?[\.\)\-—\s]+', '', sentence.strip())
                     translated_pairs.append({
-                        "english": sentence.strip(),
-                        "korean": korean
+                        "english": cleaned_english,
+                        "korean": cleaned_korean
                     })
             
             # 문장이 있는 문단만 추가
@@ -160,6 +165,67 @@ async def translate_text(request: TranslationRequest):
             words=words,
             topic=topic
         )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/paragraphs/reorganize", response_model=TranslationResponse)
+async def reorganize_paragraphs(request: ReorganizeParagraphsRequest):
+    """문단 재구성 - 문장 인덱스 범위로 문단 분리/병합"""
+    try:
+        # 모든 문장을 평면화
+        all_sentences = []
+        for para in request.paragraphs:
+            all_sentences.extend(para.sentences)
+        
+        if not all_sentences:
+            raise ValueError("문장이 없습니다.")
+        
+        # 문단 경계 검증
+        if not request.paragraph_boundaries or request.paragraph_boundaries[0] != 0:
+            raise ValueError("첫 번째 문단은 인덱스 0에서 시작해야 합니다.")
+        
+        # 경계가 문장 개수를 초과하지 않는지 확인
+        # 마지막 경계는 문장 개수와 같을 수 있음 (마지막 문단의 끝)
+        if any(boundary > len(all_sentences) for boundary in request.paragraph_boundaries):
+            raise ValueError("문단 경계가 문장 개수를 초과합니다.")
+        
+        # 경계를 정렬하고 중복 제거
+        boundaries = sorted(set(request.paragraph_boundaries))
+        if boundaries[0] != 0:
+            boundaries.insert(0, 0)
+        
+        # 문단 재구성
+        new_paragraphs = []
+        for i in range(len(boundaries)):
+            start_idx = boundaries[i]
+            end_idx = boundaries[i + 1] if i + 1 < len(boundaries) else len(all_sentences)
+            
+            paragraph_sentences = all_sentences[start_idx:end_idx]
+            if paragraph_sentences:
+                new_paragraphs.append({
+                    "sentences": [
+                        {"english": sent.english, "korean": sent.korean}
+                        for sent in paragraph_sentences
+                    ]
+                })
+        
+        # 원본 텍스트 재구성 (단어 추출 및 주제 분류용)
+        english_text = " ".join(sent.english for sent in all_sentences)
+        korean_text = " ".join(sent.korean for sent in all_sentences)
+        
+        # 단어 추출
+        words = vocabulary_service.extract_words(english_text)
+        
+        # 주제 분류
+        topic = topic_classification_service.classify(english_text)
+        
+        return TranslationResponse(
+            paragraphs=new_paragraphs,
+            words=words,
+            topic=topic
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

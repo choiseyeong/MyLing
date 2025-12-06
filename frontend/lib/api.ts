@@ -61,6 +61,20 @@ export const apiClient = {
     return response.data
   },
 
+  // 문단 재구성
+  reorganizeParagraphs: async (data: {
+    paragraphs: Array<{
+      sentences: Array<{
+        english: string
+        korean: string
+      }>
+    }>
+    paragraph_boundaries: number[]
+  }): Promise<TranslationResponse> => {
+    const response = await api.post('/api/paragraphs/reorganize', data)
+    return response.data
+  },
+
   // 학습 저장
   saveStudy: async (data: {
     title: string
