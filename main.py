@@ -106,14 +106,18 @@ else:
         "http://127.0.0.1:3001", 
         "http://127.0.0.1:3002",
         "https://my-ling.vercel.app",  # Vercel 프로덕션
-        "https://my-ling-*.vercel.app",  # Vercel 프리뷰 (와일드카드는 작동 안 함, 명시적으로 추가 필요)
     ]
 
+# Vercel 프리뷰 URL 패턴 (모든 my-ling 관련 vercel.app 도메인 허용)
+vercel_regex = r"https://my-ling.*\.vercel\.app"
+
 print(f"CORS allowed origins: {allowed_origins}")
+print(f"CORS allowed origin regex: {vercel_regex}")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    allow_origin_regex=vercel_regex,  # Vercel 모든 URL 패턴 허용
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
