@@ -28,57 +28,66 @@ if True:  # 런타임 경로 수정
         WordResponse
     )
 
-env_path = backend_path / "api.env"
-print(f"Looking for env file at: {env_path}")
-print(f"File exists: {env_path.exists()}")
-
-if env_path.exists():
-    try:
-        with open(env_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-            print(f"File content (first 50 chars): {repr(content[:50])}")
-            print(f"File content length: {len(content)}")
-            
-            if not content:
-                print("WARNING: File is empty!")
-                with open(env_path, 'rb') as fb:
-                    binary_content = fb.read()
-                    print(f"Binary content: {binary_content[:50]}")
-                    content = binary_content.decode('utf-8')
-                    print(f"Decoded content: {repr(content[:50])}")
-            
-            lines = content.replace('\r\n', '\n').replace('\r', '\n').split('\n')
-            print(f"Number of lines: {len(lines)}")
-            
-            for i, line in enumerate(lines):
-                line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    parts = line.split('=', 1)
-                    if len(parts) == 2:
-                        key = parts[0].strip()
-                        value = parts[1].strip()
-                        os.environ[key] = value
-                        print(f"Set environment variable: {key} = {value[:20]}...")
-                        test_key = os.getenv(key)
-                        print(f"  Verification: os.getenv('{key}') = {test_key is not None}")
-                        if test_key:
-                            print(f"  Value: {test_key[:20]}...")
-    except Exception as e:
-        print(f"Error reading env file: {e}")
-        import traceback
-        traceback.print_exc()
-else:
-    print("api.env not found, trying load_dotenv()")
-    load_dotenv()
-
-
+# Railway 환경 변수를 우선 사용, 없으면 파일에서 로드
 api_key = os.getenv('DEEPL_API_KEY')
+
+# 환경 변수가 없으면 파일에서 로드 시도
+if not api_key:
+    env_path = backend_path / "api.env"
+    print(f"Looking for env file at: {env_path}")
+    print(f"File exists: {env_path.exists()}")
+    
+    if env_path.exists():
+        try:
+            with open(env_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                print(f"File content (first 50 chars): {repr(content[:50])}")
+                print(f"File content length: {len(content)}")
+                
+                if not content:
+                    print("WARNING: File is empty!")
+                    with open(env_path, 'rb') as fb:
+                        binary_content = fb.read()
+                        print(f"Binary content: {binary_content[:50]}")
+                        content = binary_content.decode('utf-8')
+                        print(f"Decoded content: {repr(content[:50])}")
+                
+                lines = content.replace('\r\n', '\n').replace('\r', '\n').split('\n')
+                print(f"Number of lines: {len(lines)}")
+                
+                for i, line in enumerate(lines):
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        parts = line.split('=', 1)
+                        if len(parts) == 2:
+                            key = parts[0].strip()
+                            value = parts[1].strip()
+                            # 이미 환경 변수가 설정되어 있지 않을 때만 설정
+                            if not os.getenv(key):
+                                os.environ[key] = value
+                                print(f"Set environment variable: {key} = {value[:20]}...")
+                                test_key = os.getenv(key)
+                                print(f"  Verification: os.getenv('{key}') = {test_key is not None}")
+                                if test_key:
+                                    print(f"  Value: {test_key[:20]}...")
+        except Exception as e:
+            print(f"Error reading env file: {e}")
+            import traceback
+            traceback.print_exc()
+    else:
+        print("api.env not found, trying load_dotenv()")
+        load_dotenv()
+    
+    # 다시 확인
+    api_key = os.getenv('DEEPL_API_KEY')
+
 print(f"DEEPL_API_KEY after loading: {api_key is not None}")
 if api_key:
     print(f"DEEPL_API_KEY value: {api_key[:20]}...")
 else:
     print("ERROR: DEEPL_API_KEY is still None!")
     print(f"All env vars with DEEPL: {[k for k in os.environ.keys() if 'DEEPL' in k]}")
+    print("⚠️ Please set DEEPL_API_KEY in Railway environment variables!")
 
 app = FastAPI(title="MyLing API", version="1.0.0")
 
