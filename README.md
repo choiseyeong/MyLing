@@ -48,7 +48,7 @@ PDF나 이미지 파일을 업로드하면 텍스트를 자동으로 추출하�
 ### 🗓 11월
 - Figma 설계 👉 스토리와 테마를 설정하고 캐릭터 직접 디자인  
 - 초기 구현 시작 
-<img width="500" height="946" alt="Image" src="https://github.com/user-attachments/assets/f286b4a8-aeec-48e0-9898-54f299ec7e73" />
+<img width="00" height="946" alt="Image" src="https://github.com/user-attachments/assets/f286b4a8-aeec-48e0-9898-54f299ec7e73" />
 <img width="500" height="936" alt="Image" src="https://github.com/user-attachments/assets/7746e89f-3c8f-475b-9f7b-4f84181cda9d" />
 
 ### 🗓 12월
@@ -72,8 +72,8 @@ PDF나 이미지 파일을 업로드하면 텍스트를 자동으로 추출하�
 ### 1. 파일 업로드 ▼<br/>
 최대 5개의 파일을 업로드할 수 있으며, DeepL API로 번역이 되는 동안의 로딩화면입니다.
 
-<img width="800" height="860" alt="Image" src="https://github.com/user-attachments/assets/783f08f6-1308-43ae-893e-67e16067cc7a" />
-<img width="800" height="857" alt="Image" src="https://github.com/user-attachments/assets/11c98a18-7d41-4858-b5db-1bf231fee227" />
+<img width="300" height="860" alt="Image" src="https://github.com/user-attachments/assets/783f08f6-1308-43ae-893e-67e16067cc7a" />
+<img width="300" height="857" alt="Image" src="https://github.com/user-attachments/assets/11c98a18-7d41-4858-b5db-1bf231fee227" />
 <br/>
 
 ### 2. 내 학습에 저장 & 문단 분리 ▼<br/>
@@ -139,48 +139,48 @@ PDF나 이미지 파일을 업로드하면 텍스트를 자동으로 추출하�
 PDF와 이미지에서 텍스트를 자동으로 추출합니다.
 - PDF: pdfplumber로 단어 단위 텍스트와 위치 정보를 추출한 뒤, Y좌표 기준으로 줄을 묶고 간격·들여쓰기를 분석해 문단 구조로 재구성  
 - 이미지: pytesseract로 OCR 수행 후, 블록/줄 정보를 활용해 문단을 분리  
-- Pillow로 이미지 전처리(대비 개선, 노이즈 제거)를 수행해 인식률을 높임
+- Pillow로 이미지의 대비 개선, 노이즈 제거를 수행해 텍스트 인식률을 높임
 - 제목·저자·챕터처럼 문단이 아닌 라인을 자동으로 걸러내고,  
 문단 번호나 패턴을 기반으로 문단을 더 정확하게 나누는 방식으로 개선
 
 
 
 ## 2. 문단 자동 분리 기능 (OCR → 번역 단계)
-**사용 기술:** `pdfplumber`, `pytesseract`, `Pillow`, `regex`
+**사용 기술:** pdfplumber, pytesseract, Pillow, regex
 
 문단 분리는 두 단계를 걸쳐 이뤄집니다.  
 
 ### 1) OCR 단계: 레이아웃 기반 1차 분리
 PDF·이미지의 위치 정보를 사용해 기본 문단을 구성합니다.
-- `pdfplumber`로 단어 위치 추출 → Y좌표 기준 줄 단위 묶기  
+- pdfplumber로 단어 위치 추출 → Y좌표 기준 줄 단위 묶기  
 - 줄 간 간격·들여쓰기·문장 끝 + 대문자 시작 여부로 문단 구분  
-- 이미지의 경우 `pytesseract`의 블록/줄 정보를 활용해 문단 분리  
+- 이미지의 경우 pytesseract의 블록/줄 정보를 활용해 문단 분리  
 ➡ **PDF/이미지의 실제 배치를 반영한 기본 문단 구조 생성**
 
 ### 2) 번역 단계: 텍스트 패턴 기반 2차 정리
 OCR 결과를 텍스트 규칙으로 다시 정리합니다.
 - 빈 줄(`\n\n`) 기반 재분리  
 - 제목/저자/챕터 라인 자동 제거  
-- 문단 번호 패턴 `(2), (3)` 감지 및 분리  
+- 문단 구분 기호 ((2), (3) 등의 숫자) 감지 및 분리  
 - 불필요한 번호·공백 정리  
 ➡ **제목 제거·번호 처리 등 OCR에서 잡지 못한 부분 보완**
 
 
 
 ## 3. 문단 재구성 기능
-**사용 기술:** React (`useState`, `useEffect`)
+**사용 기술:** React (useState, useEffect)
 
 잘못된 분리 오류를 보완하기 위해 추가했습니다  
 - 문장 사이 클릭으로 문단 분리·병합하여 재구성  
 - 변경된 구조는 백엔드 API로 전달  
 
 ## 4. Transformer 기반 주제 자동 분류
-**사용 기술:** `transformers`, `torch`  
-**모델:** `typeform/distilbert-base-uncased-mnli`
+**사용 기술:** transformers, torch  
+**모델:** typeform/distilbert-base-uncased-mnli
 
 키워드 기반 점수와 Zero-shot Classification을 결합한 하이브리드 방식입니다.
-- TopicClassificationService에서 zero-shot-classification을 호출할 때 transformers가 torch를 백엔드로 사용.
-- 가벼운 모델(`distilbert-base-uncased-mnli`)을 사용해 응답 속도와 배포 효율을 개선.
+- TopicClassificationService에서 zero-shot-classification을 호출할 때 transformers가 torch를 백엔드로 사용
+- 가벼운 모델(distilbert-base-uncased-mnli)을 사용해 응답 속도와 배포 효율을 개선
 - 분류 대상: **인문 / 자연과학 / 공학·기술 / 예술·문화**  
 - 키워드 기반(가중치 0.7) + 모델 기반(가중치 0.3) 결합  
 - 모델 로드 실패 시 키워드 기반으로 폴백  
@@ -189,7 +189,7 @@ OCR 결과를 텍스트 규칙으로 다시 정리합니다.
 
 
 ## 5. 단어장 관리
-**사용 기술:** `SQLAlchemy`, `aiosqlite`, Free Dictionary API, DeepL API
+**사용 기술:** SQLAlchemy, aiosqlite, Free Dictionary API, DeepL API
 
 지문 학습 중 단어를 더블클릭하면 뜻을 추출하고 단어장 형태로 관리합니다.  
 - 영어 단어 자동 추출(중복 제거, 불용어 제거)  
@@ -201,22 +201,25 @@ OCR 결과를 텍스트 규칙으로 다시 정리합니다.
 - **Free Dictionary API:** 먼저 영어 정의를 조회하고 추출  
 - **DeepL API:** 앞에서 추출한 영어 정의를 한국어로 번역해 사전식으로 포맷팅  
 - Free Dictionary API 실패 시 단어 자체를 DeepL로 번역하도록 폴백 처리를 하였습니다.
-- 두 개의 외부 API를 호출하기 때문에 뜻을 불러오기까지 약간의 로딩시간이 있습니다.
+⚠ 두 개의 외부 API를 호출하기 때문에 뜻을 불러오기까지 약간의 로딩시간이 있습니다.
 
 
 
 
 ## 6. PDF 생성 기능 (지문 + 번역 + 단어)
-**사용 기술:** `jsPDF`
+**사용 기술:** jsPDF
 
 학습 내용을 PDF로 저장할 수 있습니다.
-- Step 2: 지문+번역 / Step 3: 지문+번역+단어  
+- Step 2에서 저장시: 지문+번역
+- Step 3에서 저장시: 지문+번역+단어  
 - 긴 내용은 자동 페이지 분할 처리
+- 지문+번역이 한 단위로 묶이도록 하여 페이지 분할 처리될 때 가독성 개선
+- PDF 생성 시 한글 폰트를 Base64로 로드해 정상적으 표시
 
 
 
 ## 7. 학습 기록 저장 및 관리
-**사용 기술:** `SQLAlchemy`, `aiosqlite`
+**사용 기술:** SQLAlchemy, aiosqlite
 
 학습한 지문을 저장해 이후에도 다시 학습할 수 있습니다.
 - 저장된 제목, 원문/번역문, 문단 구조, 단어 목록, 주제 데이터 사용  
@@ -240,7 +243,7 @@ OCR 결과를 텍스트 규칙으로 다시 정리합니다.
 ---
 
 # 6. 기술 스택 (Tech Stack)
-<img width="700" height="698" alt="Image" src="https://github.com/user-attachments/assets/507ed12c-34df-46c9-aa72-6d56ac8a6786" /><br/>
+<img width="1200" height="698" alt="Image" src="https://github.com/user-attachments/assets/1cf11797-42e2-431b-8b4d-15a40d3a6a43" /><br/>
 - **Frontend:** Next.js 14, React 18, TypeScript, Tailwind CSS, Axios, jsPDF
 - **Backend:** FastAPI, Python 3.11, Uvicorn, SQLAlchemy, SQLite, aiosqlite
 - **AI/ML:** Transformers (PyTorch), Tesseract OCR, pdfplumber
@@ -300,9 +303,9 @@ MyLing/
 
 ---
 
-## 8. 문제 해결 및 UX 개선 (Troubleshooting & System Improvements)
+## 8. 문제 해결 및 UX 개선 (Troubleshooting & UX Enhancements)
 
-### 🐞 문제 해결 (Troubleshooting)
+> ### 🐞 문제 해결
 
 **PDF 텍스트 줄바꿈/공백 오류 해결**  
 PDF에서 추출한 텍스트가 흐트러지는 문제가 있어, 단어의 Y좌표를 기준으로 줄 단위로 다시 묶고 불필요한 공백을<br/>
@@ -315,45 +318,89 @@ PDF에서 추출한 텍스트가 흐트러지는 문제가 있어, 단어의 Y�
 그래서 JSON 파싱을 안전하게 처리하도록 했고, 배열 검증을 강화해 잘못된 형식일 경우 기본값을 적용했습니다.<br/>
 또한 로딩 중에는 로딩 화면을 표시하도록 수정하여, 저장된 학습이 정상적으로 불러와지도록 했습니다.
 
-**jsPDF 한글 깨짐 문제 해결**
+**jsPDF 한글 깨짐 문제 해결**  
 PDF 생성 시 한글이 깨져 표시되는 문제가 있었습니다.  
 원인은 jsPDF가 기본적으로 한글 폰트를 지원하지 않아 한글 문자가 제대로 렌더링되지 않았기 때문입니다.  
 맑은 고딕 폰트 파일(MALGUN.TTF)을 프로젝트의 public/fonts 디렉토리에 포함하고,  
 PDF 생성 시 폰트를 Base64로 로드해 jsPDF의 VFS(Virtual File System)에 등록하도록 수정했습니다.  
-또한 한글 텍스트 렌더링 시 MalgunGothic 폰트를 명시적으로 사용하도록 변경하여 PDF 내 한글이 정상적으로 표시되도록 했습니다.
-
-**환경 변수 로딩 문제 해결**  
-Railway 배포 환경에서 환경 변수가 불러와지지 않는 문제가 있었습니다.<br/>
-우선 환경 변수에서 값을 찾고, 없을 경우 `.env` 파일을 읽도록 폴백 로직을 추가했습니다.
+또한 한글 텍스트 렌더링 시 MalgunGothic 폰트를 명시적으로 사용하도록 변경하여 PDF 내 한글이 정상적으로 표시되도록 했습니다.  
+  
 
 
 
-### 🎨 사용자 경험(UX) 개선 (UX Enhancements)
+> ### 🎨 사용자 경험(UX) 개선
 
 **로딩 상태 시각화**  
-파일 업로드, 번역, PDF 생성 과정에 로딩 화면과 진행률 표시를 추가해 사용자가 현재 상태를 명확히 파악할 수 있도록 했습니다.
+파일 업로드, 번역, PDF 생성 과정에 로딩 화면과 진행률 표시를 추가해 사용자가 현재 상태를 명확히 파악할 수 있도록 했습니다.  
 
 **Toast 알림 시스템 적용**  
 성공/실패 메시지를 Toast 형태로 표시해 화면 흐름을 방해하지 않도록 했습니다.<br/>
-특히 실패 시에 모달보다 더 부드러운 느낌을 주는 것 같아 Toast 형태를 선택하였습니다.
-
+특히 실패 시에 모달보다 더 부드러운 느낌을 주는 것 같아 Toast 형태를 선택하였습니다.  
 
 **반응형 디자인 적용**  
-모바일, 태블릿, PC 등 다양한 화면에서도 자연스럽게 보이도록 Tailwind CSS의 반응형 유틸리티를 활용해 레이아웃을 조정했습니다.  
-😂 _다만 모바일 버전에서는 글씨가 세로로 매우 길게 나열되어 시각적 편안은 보장하지 못합니다._
+모바일, 태블릿, PC 등 다양한 화면에서도 자연스럽게 보이도록 Tailwind CSS를 활용해 레이아웃을 조정했습니다.  
+😂 _그러나 모바일 버전에서는 글씨가 세로로 매우 길게 나열되어 시각적 편안은 보장하지 못합니다._
 
 
 ---
 
-# 9. 참고 자료 (References)
+# 9. 개선하고 싶은 점과 느낀점 (Future Improvement & What I Learned)  
 
-- 저장할 때 발생한 한글 깨짐 문제 해결 과정에서 다음 자료의 도움을 받았습니다:  
+> ### 🔧 개선하고 싶은 점  
+  
+1. **문단 분리 및 주제 분류 기능의 선택 옵션화**  
+   현재 문단 분리와 주제 분류는 자동으로 실행되지만, 지문에 따라 이 기능이 필요 없거나 주제가 모호한 경우가 있습니다.  
+   앞으로는 이 기능을 사용자가 직접 on/off 할 수 있도록 선택형 옵션으로 제공한다면  
+   더 유연한 학습 경험을 제공할 수 있을 것 같습니다.
+
+2. **문법 분석 및 지문 요약 기능 추가**  
+   영어 지문 학습에서는 번역과 단어뿐 아니라 문법 이해도 중요한 요소이기 때문에,  
+   문장 구조 분석이나 핵심 문법을 함께 제공하는 기능을 추가해 보고 싶습니다.  
+   또한 긴 지문을 빠르게 이해할 수 있도록 지문 요약 기능을 제공한다면,  
+   학습자의 이해도 향상에 큰 도움이 될 것이라 생각합니다. 가능하다면 가장 먼저 도입하고 싶은 기능입니다.
+
+3. **단어장 기반 게임형 퀴즈 제공**  
+   단순히 단어와 뜻을 나열하는 방식이 아니라, 퀴즈 형태로 학습할 수 있는 단어장을 구현하고 싶습니다.  
+   퀴즈 점수에 따라 레벨이 오르는 방식( _링기가 점점 자라는 설정 등_ )처럼 게임 요소를 도입하면  
+   학습 흥미가 높아지고, 더 효과적인 단어 학습이 가능할 것으로 기대됩니다.
+
+4. **논문/기사 추천 기능 자동화**  
+   현재는 인공지능의 도움을 받아 수집한 데이터를 바탕으로 제목·이미지·URL을 하드코딩해 제공하고 있습니다.  
+   앞으로는 주제에 맞는 새로운 자료를 자동으로 추천할 수 있도록 개선하고 싶습니다.  
+   추가 조사로 알게 된 짧은 인용·지식 콘텐츠를 제공하는 Wikiquote, 전 세계 뉴스를 키워드별로 검색할 수 있는  
+   Newscatcher API 등을 활용하면, 학습자에게 더 풍부한 읽기 자료를 실시간으로 제공할 수 있을 것으로 보입니다.
+
+> ### 💭 느낀 점
+
+이번 프로젝트를 진행하며 git과 GitHub 사용법을 집중적으로 익힐 수 있었고,  
+기능 단위로 커밋을 관리하고 버전 관리를 구조화하는 과정이 작업 효율을 크게 높인다는 점을 배웠습니다.
+
+또한 사용자 경험을 고려하며 기능을 구현하는 소중한 과정을 직접 경험해보며,  
+단순히 UI를 만드는 것을 넘어 흐름 전체를 설계하는 것이 중요하다는 점을 알게 되었습니다.  
+개인 프로젝트에서도 UX 시각이 필요하지만, 더 나은 사용자 경험을 위해서는 다양한 시각이 모이는 협업의 중요성이 크다는 것 또한 느꼈습니다.
+
+특히 OCR, 문단 분리 로직, 번역 처리, Zero-shot 기반 주제 분류, 단어장 관리, PDF 생성 등 이번 프로젝트의 핵심 기능들을 구현하며  
+각 기능이 어떻 구성되고 서로 어떤 흐름으로 연결되는지 이해하는 것이 얼마나 중요한지 깨달았습니다.
+
+단순히 작동하는 코드를 작성하는 것이 아니라,  
+- 왜 해당 라이브러리를 선택했는지  
+- 각 기능을 어떤 기준으로 분리하고 설계하는 것이 좋은지  
+- 서비스 흐름에서 기능들이 어떻게 상호작용하는지  
+
+이런 부분들을 고민하며 개발한 과정이 큰 배움이 되었습니다.
+
+기능을 “만들었다”는 것보다, **기능을 구성하는 기술을 이해하고 설명할 수 있는 힘**이 생긴 점이 이번 프로젝트에서 얻은 가장 큰 수확이라고 느낍니다!  
+
+---
+
+# 10. 참고 자료 (References)
+
+- 저장된 PDF의 한글 깨짐 문제 해결에서 다음 자료의 도움을 받았습니다:  
     [https://eonhwa-theme.tistory.com/183#google_vignette](https://eonhwa-theme.tistory.com/183#google_vignette)  
-- 전체적인 코드 구현과 설계 과정에서 ChatGPT와 Cursor의 조언을 참고했습니다.
-
----
-
-### 공식 문서 (Documentation)
+- 전체적인 코드 구현과 설계 과정에서 ChatGPT와 Cursor의 조언을 참고했습니다.  
+  
+  
+### 공식 문서
 
 - FastAPI Documentation: [https://fastapi.tiangolo.com/](https://fastapi.tiangolo.com/)
 - Hugging Face Transformers Guide: [https://huggingface.co/docs/transformers](https://huggingface.co/docs/transformers)
@@ -362,7 +409,7 @@ Railway 배포 환경에서 환경 변수가 불러와지지 않는 문제가 �
 
 ---
 
-# 10. 라이선스 (License)
+# 11. 라이선스 (License)
 
 본 프로젝트는 **MIT License**로 공개합니다.
 자세한 내용은 아래의 LICENSE 전문을 참고해 주세요.
@@ -392,9 +439,8 @@ THE SOFTWARE.
 
 ```
 
----
 
-### 사용한 오픈소스 라이브러리 및 라이선스
+### 🌐 사용한 오픈소스 라이브러리 및 라이선스
 
 아래는 본 프로젝트에서 사용한 주요 오픈소스 라이브러리와 해당 라이선스입니다.<br/>
 모든 라이브러리는 원저작권 및 라이선스 조건을 준수하여 사용되었습니다.
@@ -411,7 +457,7 @@ THE SOFTWARE.
 
 ---
 
-# 11. 개발자 정보 (Author)
+# 12. 개발자 정보 (Author)
 
 **Developer:** Choi Se-yeong ([going-well6681@seoultech.ac.kr](mailto:going-well6681@seoultech.ac.kr))
 
