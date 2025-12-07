@@ -48,8 +48,8 @@ PDF나 이미지 파일을 업로드하면 텍스트를 자동으로 추출하�
 ### 🗓 11월
 - Figma 설계 👉 스토리와 테마를 설정하고 캐릭터 직접 디자인  
 - 초기 구현 시작 
-<img width="300" height="946" alt="Image" src="https://github.com/user-attachments/assets/f286b4a8-aeec-48e0-9898-54f299ec7e73" />
-<img width="300" height="936" alt="Image" src="https://github.com/user-attachments/assets/7746e89f-3c8f-475b-9f7b-4f84181cda9d" />
+<img width="350" height="946" alt="Image" src="https://github.com/user-attachments/assets/f286b4a8-aeec-48e0-9898-54f299ec7e73" />
+<img width="350" height="936" alt="Image" src="https://github.com/user-attachments/assets/7746e89f-3c8f-475b-9f7b-4f84181cda9d" />
 
 ### 🗓 12월
 - 홈, About 페이지 디자인 구현
@@ -72,8 +72,8 @@ PDF나 이미지 파일을 업로드하면 텍스트를 자동으로 추출하�
 ### 1. 파일 업로드 ▼<br/>
 최대 5개의 파일을 업로드할 수 있으며, DeepL API로 번역이 되는 동안의 로딩화면입니다.
 
-<img width="300" height="860" alt="Image" src="https://github.com/user-attachments/assets/783f08f6-1308-43ae-893e-67e16067cc7a" />
-<img width="300" height="857" alt="Image" src="https://github.com/user-attachments/assets/11c98a18-7d41-4858-b5db-1bf231fee227" />
+<img width="800" height="860" alt="Image" src="https://github.com/user-attachments/assets/783f08f6-1308-43ae-893e-67e16067cc7a" />
+<img width="800" height="857" alt="Image" src="https://github.com/user-attachments/assets/11c98a18-7d41-4858-b5db-1bf231fee227" />
 <br/>
 
 ### 2. 내 학습에 저장 & 문단 분리 ▼<br/>
