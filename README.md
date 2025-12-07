@@ -48,8 +48,8 @@ PDF나 이미지 파일을 업로드하면 텍스트를 자동으로 추출하�
 ### 🗓 11월
 - Figma 설계 👉 스토리와 테마를 설정하고 캐릭터 직접 디자인  
 - 초기 구현 시작 
-<img width="00" height="946" alt="Image" src="https://github.com/user-attachments/assets/f286b4a8-aeec-48e0-9898-54f299ec7e73" />
-<img width="500" height="936" alt="Image" src="https://github.com/user-attachments/assets/7746e89f-3c8f-475b-9f7b-4f84181cda9d" />
+<img width="300" height="946" alt="Image" src="https://github.com/user-attachments/assets/f286b4a8-aeec-48e0-9898-54f299ec7e73" />
+<img width="300" height="936" alt="Image" src="https://github.com/user-attachments/assets/7746e89f-3c8f-475b-9f7b-4f84181cda9d" />
 
 ### 🗓 12월
 - 홈, About 페이지 디자인 구현
